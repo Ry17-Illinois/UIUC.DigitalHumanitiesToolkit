@@ -39,126 +39,174 @@ class CodebooksApp:
         self.refresh_display()
     
     def setup_ui(self):
-        # Main frame
-        main_frame = ttk.Frame(self.root, padding="10")
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        
-        # Configure grid weights
+        # Configure root
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(2, weight=1)
         
-        # Title
-        title_label = ttk.Label(main_frame, text="CODEBOOKS", font=("Arial", 16, "bold"))
-        title_label.grid(row=0, column=0, columnspan=2, pady=(0, 10))
+        # Main container
+        main_container = ttk.Frame(self.root)
+        main_container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=10, pady=10)
+        main_container.columnconfigure(1, weight=1)
+        main_container.rowconfigure(1, weight=1)
         
-        # Control Panel
-        control_frame = ttk.LabelFrame(main_frame, text="Controls", padding="10")
+        # Title bar
+        title_frame = ttk.Frame(main_container)
+        title_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+        title_frame.columnconfigure(1, weight=1)
+        
+        ttk.Label(title_frame, text="CODEBOOKS", font=("Arial", 18, "bold")).grid(row=0, column=0, sticky=tk.W)
+        
+        # Progress bar
+        self.progress = ttk.Progressbar(title_frame, mode='indeterminate')
+        self.progress.grid(row=0, column=1, sticky=(tk.E), padx=(20, 0))
+        
+        # Streamlined control panel
+        control_frame = ttk.LabelFrame(main_container, text="Workflow", padding="15")
         control_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N), padx=(0, 10))
+        control_frame.columnconfigure(1, weight=1)
         
-        # Instructions
-        inst_label = ttk.Label(control_frame, text="📋 WORKFLOW STEPS:", font=("Arial", 9, "bold"))
-        inst_label.grid(row=0, column=0, pady=(0,5), sticky=tk.W)
+        # FILES section
+        ttk.Label(control_frame, text="📁 FILES", font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
+        ttk.Button(control_frame, text="Add Files/Directory", command=self.add_files, width=20).grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
         
-        # File operations with step numbers and descriptions
-        ttk.Button(control_frame, text="1️⃣ Add Files/Directory", 
-                  command=self.add_files).grid(row=1, column=0, pady=2, sticky=tk.W)
-        ttk.Label(control_frame, text="   Import documents to process", 
-                 font=("Arial", 8), foreground="gray").grid(row=2, column=0, sticky=tk.W)
+        # OCR PROCESSING section
+        ttk.Label(control_frame, text="🔍 OCR PROCESSING", font=("Arial", 10, "bold")).grid(row=2, column=0, columnspan=2, sticky=tk.W, pady=(15, 5))
         
-        ttk.Button(control_frame, text="2️⃣ Run EasyOCR (🤖 AI)", 
-                  command=self.run_ocr).grid(row=3, column=0, pady=2, sticky=tk.W)
-        ttk.Label(control_frame, text="   GPU-powered text extraction", 
-                 font=("Arial", 8), foreground="gray").grid(row=4, column=0, sticky=tk.W)
+        ocr_frame = ttk.Frame(control_frame)
+        ocr_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
+        ocr_frame.columnconfigure(1, weight=1)
         
-        ttk.Button(control_frame, text="2️⃣ Run Tesseract OCR (📄)", 
-                  command=self.run_tesseract_ocr).grid(row=5, column=0, pady=2, sticky=tk.W)
-        ttk.Label(control_frame, text="   Traditional OCR engine", 
-                 font=("Arial", 8), foreground="gray").grid(row=6, column=0, sticky=tk.W)
+        ttk.Label(ocr_frame, text="Engine:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
         
-        ttk.Button(control_frame, text="2️⃣ Run PyPDF2 Extract (📋)", 
-                  command=self.run_pypdf2_ocr).grid(row=7, column=0, pady=2, sticky=tk.W)
-        ttk.Label(control_frame, text="   Direct PDF text extraction", 
-                 font=("Arial", 8), foreground="gray").grid(row=8, column=0, sticky=tk.W)
+        self.ocr_engine = tk.StringVar(value="EasyOCR (AI)")
+        ocr_combo = ttk.Combobox(ocr_frame, textvariable=self.ocr_engine, state="readonly", width=15)
+        ocr_combo['values'] = ("EasyOCR (AI)", "Tesseract", "PyPDF2", "OpenAI OCR", "Ollama OCR")
+        ocr_combo.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(0, 5))
         
-        ttk.Button(control_frame, text="2️⃣ Run OpenAI OCR (🤖📄)", 
-                  command=self.run_openai_ocr).grid(row=9, column=0, pady=2, sticky=tk.W)
-        ttk.Label(control_frame, text="   AI-powered image transcription", 
-                 font=("Arial", 8), foreground="gray").grid(row=10, column=0, sticky=tk.W)
+        ttk.Button(ocr_frame, text="Run OCR", command=self.run_selected_ocr, width=12).grid(row=0, column=2, sticky=tk.E)
         
-        ttk.Button(control_frame, text="2️⃣ Run Ollama OCR (🏠🤖)", 
-                  command=self.run_ollama_ocr).grid(row=11, column=0, pady=2, sticky=tk.W)
-        ttk.Label(control_frame, text="   Local LLM image transcription", 
-                 font=("Arial", 8), foreground="gray").grid(row=12, column=0, sticky=tk.W)
+        # AI SETUP section
+        ttk.Label(control_frame, text="🤖 AI SETUP", font=("Arial", 10, "bold")).grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=(15, 5))
         
-        ttk.Button(control_frame, text="3️⃣ Setup AI Prompts (🤖)", 
-                  command=self.setup_ai).grid(row=13, column=0, pady=2, sticky=tk.W)
-        ttk.Label(control_frame, text="   Configure OpenAI API key", 
-                 font=("Arial", 8), foreground="gray").grid(row=14, column=0, sticky=tk.W)
+        ai_frame = ttk.Frame(control_frame)
+        ai_frame.grid(row=5, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
+        ai_frame.columnconfigure(0, weight=1)
+        ai_frame.columnconfigure(1, weight=1)
         
-        ttk.Button(control_frame, text="4️⃣ Generate Metadata (📝)", 
-                  command=self.generate_metadata).grid(row=15, column=0, pady=2, sticky=tk.W)
-        ttk.Label(control_frame, text="   AI-powered Dublin Core extraction", 
-                 font=("Arial", 8), foreground="gray").grid(row=16, column=0, sticky=tk.W)
+        ttk.Button(ai_frame, text="Configure AI", command=self.setup_ai).grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 2))
+        ttk.Button(ai_frame, text="Launch Ollama", command=self.launch_ollama).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(2, 0))
         
-        ttk.Separator(control_frame, orient='horizontal').grid(row=17, column=0, sticky=(tk.W, tk.E), pady=10)
+        # METADATA section
+        ttk.Label(control_frame, text="📝 METADATA", font=("Arial", 10, "bold")).grid(row=6, column=0, columnspan=2, sticky=tk.W, pady=(15, 5))
         
-        ttk.Label(control_frame, text="🛠️ UTILITIES:", font=("Arial", 9, "bold")).grid(row=18, column=0, sticky=tk.W)
+        metadata_frame = ttk.Frame(control_frame)
+        metadata_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
+        metadata_frame.columnconfigure(1, weight=1)
         
-        ttk.Button(control_frame, text="🔍 Evaluate OCR Quality", 
-                  command=self.evaluate_ocr).grid(row=19, column=0, pady=2, sticky=tk.W)
-        ttk.Label(control_frame, text="   Compare OCR engine performance", 
-                 font=("Arial", 8), foreground="gray").grid(row=20, column=0, sticky=tk.W)
+        ttk.Label(metadata_frame, text="AI Model:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
         
-        ttk.Button(control_frame, text="🗑️ Clear Selected Rows", 
-                  command=self.clear_rows).grid(row=21, column=0, pady=2, sticky=tk.W)
+        self.ai_model = tk.StringVar(value="OpenAI GPT")
+        ai_combo = ttk.Combobox(metadata_frame, textvariable=self.ai_model, state="readonly", width=15)
+        ai_combo['values'] = ("OpenAI GPT", "Ollama Local")
+        ai_combo.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(0, 5))
         
-        ttk.Button(control_frame, text="🔄 Refresh Display", 
-                  command=self.refresh_display).grid(row=22, column=0, pady=2, sticky=tk.W)
+        ttk.Button(metadata_frame, text="Generate", command=self.generate_metadata, width=12).grid(row=0, column=2, sticky=tk.E)
         
-        # Status display
-        self.status_var = tk.StringVar(value="Ready")
-        status_label = ttk.Label(control_frame, textvariable=self.status_var)
-        status_label.grid(row=23, column=0, pady=(10, 0), sticky=tk.W)
+        # TOOLS section
+        ttk.Label(control_frame, text="🛠️ TOOLS", font=("Arial", 10, "bold")).grid(row=8, column=0, columnspan=2, sticky=tk.W, pady=(15, 5))
         
-        # Data display frame
-        data_frame = ttk.LabelFrame(main_frame, text="Metadata Ledger", padding="10")
-        data_frame.grid(row=1, column=1, rowspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
-        data_frame.columnconfigure(0, weight=1)
-        data_frame.rowconfigure(0, weight=1)
+        tools_frame = ttk.Frame(control_frame)
+        tools_frame.grid(row=9, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
+        tools_frame.columnconfigure(0, weight=1)
+        tools_frame.columnconfigure(1, weight=1)
+        
+        ttk.Button(tools_frame, text="Evaluate OCR", command=self.evaluate_ocr).grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 2))
+        ttk.Button(tools_frame, text="Clear Rows", command=self.clear_rows).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(2, 0))
+        
+        # Create main paned window for resizable layout
+        main_paned = ttk.PanedWindow(main_container, orient=tk.HORIZONTAL)
+        main_paned.grid(row=1, column=1, sticky=(tk.W, tk.E, tk.N, tk.S))
+        
+        # Data display in notebook
+        self.notebook = ttk.Notebook(main_paned)
+        
+        # Processing tab
+        processing_frame = ttk.Frame(self.notebook)
+        self.notebook.add(processing_frame, text="📊 Processing")
+        processing_frame.columnconfigure(0, weight=1)
+        processing_frame.rowconfigure(0, weight=1)
         
         # Treeview for data display
-        columns = ['filename', 'easyocr_status', 'tesseract_status', 'pypdf2_status', 'openai_ocr_status', 'ollama_ocr_status', 'easyocr_text', 'tesseract_text', 'pypdf2_text', 'openai_ocr_text', 'ollama_ocr_text', 'title', 'creator', 'subject']
-        self.tree = ttk.Treeview(data_frame, columns=columns, show='headings', height=20)
+        columns = ['filename', 'status', 'ocr_preview', 'title', 'creator', 'subject']
+        self.tree = ttk.Treeview(processing_frame, columns=columns, show='headings', height=20)
         
-        for col in columns:
-            self.tree.heading(col, text=col.replace('_', ' ').title())
-            if col in ['easyocr_text', 'tesseract_text', 'pypdf2_text', 'openai_ocr_text', 'ollama_ocr_text']:
-                self.tree.column(col, width=100)
-            else:
-                self.tree.column(col, width=80)
+        # Configure columns
+        self.tree.heading('filename', text='File')
+        self.tree.heading('status', text='Status')
+        self.tree.heading('ocr_preview', text='OCR Preview')
+        self.tree.heading('title', text='Title')
+        self.tree.heading('creator', text='Creator')
+        self.tree.heading('subject', text='Subject')
         
-        # Bind double-click to view full text
+        self.tree.column('filename', width=200)
+        self.tree.column('status', width=100)
+        self.tree.column('ocr_preview', width=300)
+        self.tree.column('title', width=150)
+        self.tree.column('creator', width=150)
+        self.tree.column('subject', width=150)
+        
         self.tree.bind('<Double-1>', self.on_tree_double_click)
         
         # Scrollbars
-        v_scrollbar = ttk.Scrollbar(data_frame, orient=tk.VERTICAL, command=self.tree.yview)
-        h_scrollbar = ttk.Scrollbar(data_frame, orient=tk.HORIZONTAL, command=self.tree.xview)
-        self.tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+        tree_scroll_y = ttk.Scrollbar(processing_frame, orient=tk.VERTICAL, command=self.tree.yview)
+        tree_scroll_x = ttk.Scrollbar(processing_frame, orient=tk.HORIZONTAL, command=self.tree.xview)
+        self.tree.configure(yscrollcommand=tree_scroll_y.set, xscrollcommand=tree_scroll_x.set)
         
         self.tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        v_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
-        h_scrollbar.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        tree_scroll_y.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        tree_scroll_x.grid(row=1, column=0, sticky=(tk.W, tk.E))
         
-        # Summary frame
-        summary_frame = ttk.LabelFrame(main_frame, text="Summary", padding="10")
-        summary_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 10))
+        # Analysis tab
+        analysis_frame = ttk.Frame(self.notebook)
+        self.notebook.add(analysis_frame, text="📈 Analysis")
+        analysis_frame.columnconfigure(0, weight=1)
+        analysis_frame.rowconfigure(0, weight=1)
         
-        self.summary_text = tk.Text(summary_frame, height=10, width=30)
-        self.summary_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        summary_frame.rowconfigure(0, weight=1)
-        summary_frame.columnconfigure(0, weight=1)
+        self.analysis_text = tk.Text(analysis_frame, wrap=tk.WORD, font=("Consolas", 9))
+        analysis_scroll = ttk.Scrollbar(analysis_frame, orient=tk.VERTICAL, command=self.analysis_text.yview)
+        self.analysis_text.configure(yscrollcommand=analysis_scroll.set)
+        
+        self.analysis_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        analysis_scroll.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        
+        main_paned.add(self.notebook, weight=3)
+        
+        # Status bar at bottom
+        status_frame = ttk.Frame(main_container)
+        status_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
+        status_frame.columnconfigure(0, weight=1)
+        
+        self.status_var = tk.StringVar(value="Ready")
+        ttk.Label(status_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W).grid(row=0, column=0, sticky=(tk.W, tk.E))
+        
+        # Keyboard shortcuts
+        self.root.bind('<Control-o>', lambda e: self.add_files())
+        self.root.bind('<Control-r>', lambda e: self.run_selected_ocr())
+        self.root.bind('<F5>', lambda e: self.refresh_display())
+    
+    def run_selected_ocr(self):
+        """Run the selected OCR engine"""
+        engine = self.ocr_engine.get()
+        if engine == "EasyOCR (AI)":
+            self.run_ocr()
+        elif engine == "Tesseract":
+            self.run_tesseract_ocr()
+        elif engine == "PyPDF2":
+            self.run_pypdf2_ocr()
+        elif engine == "OpenAI OCR":
+            self.run_openai_ocr()
+        elif engine == "Ollama OCR":
+            self.run_ollama_ocr()
     
     def add_files(self):
         """Add files or directory to the ledger"""
@@ -216,8 +264,9 @@ class CodebooksApp:
                 processed += 1
             
             self.status_var.set("OCR completed")
-            self.root.after(0, self.refresh_display)
+            self.root.after(0, lambda: [self.progress.stop(), self.refresh_display()])
         
+        self.progress.start()
         threading.Thread(target=ocr_worker, daemon=True).start()
     
     def run_tesseract_ocr(self):
@@ -410,10 +459,10 @@ class CodebooksApp:
             messagebox.showerror("Launch Error", f"Failed to launch Ollama: {str(e)}")
     
     def setup_ai(self):
-        """Setup AI API key for prompt processing and launch Ollama"""
+        """Setup AI for metadata processing"""
         # Ask user what they want to configure
         choice = messagebox.askyesnocancel("AI Setup", 
-                                          "Yes: Setup OpenAI API\nNo: Launch Ollama\nCancel: Cancel")
+                                          "Yes: Setup OpenAI API\nNo: Setup Ollama\nCancel: Cancel")
         
         if choice is None:  # Cancel
             return
@@ -422,18 +471,33 @@ class CodebooksApp:
                                             "Enter your OpenAI API key:", show='*')
             if api_key:
                 try:
-                    self.prompt_processor = PromptProcessor(api_key)
-                    messagebox.showinfo("AI Setup", "AI processor initialized successfully")
+                    self.prompt_processor = PromptProcessor(api_key, "openai")
+                    messagebox.showinfo("AI Setup", "OpenAI processor initialized successfully")
                 except Exception as e:
-                    messagebox.showerror("AI Setup Error", f"Failed to initialize AI: {str(e)}")
-        else:  # No - Launch Ollama
-            self.launch_ollama()
+                    messagebox.showerror("AI Setup Error", f"Failed to initialize OpenAI: {str(e)}")
+        else:  # No - Setup Ollama
+            try:
+                self.prompt_processor = PromptProcessor(model_type="ollama")
+                messagebox.showinfo("AI Setup", "Ollama processor initialized successfully")
+            except Exception as e:
+                messagebox.showerror("AI Setup Error", f"Failed to initialize Ollama: {str(e)}")
     
     def generate_metadata(self):
         """Generate metadata using AI prompts"""
-        if not self.prompt_processor:
-            messagebox.showwarning("AI Not Setup", "Please setup AI first")
-            return
+        # Check AI model selection and setup appropriate processor
+        ai_model = self.ai_model.get()
+        
+        if ai_model == "OpenAI GPT":
+            if not self.prompt_processor or self.prompt_processor.model_type != "openai":
+                messagebox.showwarning("OpenAI Not Setup", "Please setup OpenAI API first")
+                return
+        elif ai_model == "Ollama Local":
+            if not self.prompt_processor or self.prompt_processor.model_type != "ollama":
+                try:
+                    self.prompt_processor = PromptProcessor(model_type="ollama")
+                except Exception as e:
+                    messagebox.showerror("Ollama Error", f"Failed to initialize Ollama: {str(e)}")
+                    return
         
         # Show metadata generation setup dialog
         config = self.show_metadata_config_dialog()
@@ -734,71 +798,77 @@ class CodebooksApp:
         for item in self.tree.get_children():
             self.tree.delete(item)
         
-        # Add current data
+        # Add current data with simplified view
         for _, row in self.ledger.df.iterrows():
-            # Truncate OCR text for display - handle NaN values
-            easyocr_text = str(row.get('easyocr_ocr', '') or '')
-            tesseract_text = str(row.get('tesseract_ocr', '') or '')
-            pypdf2_text = str(row.get('pypdf2_ocr', '') or '')
-            openai_text = str(row.get('openai_ocr_ocr', '') or '')
-            ollama_text = str(row.get('ollama_ocr_ocr', '') or '')
-            easyocr_display = easyocr_text[:20] + '...' if len(easyocr_text) > 20 else easyocr_text
-            tesseract_display = tesseract_text[:20] + '...' if len(tesseract_text) > 20 else tesseract_text
-            pypdf2_display = pypdf2_text[:20] + '...' if len(pypdf2_text) > 20 else pypdf2_text
-            openai_display = openai_text[:20] + '...' if len(openai_text) > 20 else openai_text
-            ollama_display = ollama_text[:20] + '...' if len(ollama_text) > 20 else ollama_text
-            
-            values = [
-                row['filename'],
+            # Determine overall status with color coding
+            statuses = [
                 row.get('easyocr_status', 'pending'),
                 row.get('tesseract_status', 'pending'),
                 row.get('pypdf2_status', 'pending'),
                 row.get('openai_ocr_status', 'pending'),
-                row.get('ollama_ocr_status', 'pending'),
-                easyocr_display,
-                tesseract_display,
-                pypdf2_display,
-                openai_display,
-                ollama_display,
+                row.get('ollama_ocr_status', 'pending')
+            ]
+            
+            completed = sum(1 for s in statuses if s == 'completed')
+            errors = sum(1 for s in statuses if s == 'error')
+            
+            if errors > 0:
+                status_display = f"🔴 {completed}/5 ({errors} errors)"
+            elif completed == 5:
+                status_display = "🟢 Complete"
+            elif completed > 0:
+                status_display = f"🟡 {completed}/5"
+            else:
+                status_display = "⚪ Pending"
+            
+            # Get best OCR text for preview
+            ocr_texts = [
+                str(row.get('easyocr_ocr', '') or ''),
+                str(row.get('tesseract_ocr', '') or ''),
+                str(row.get('pypdf2_ocr', '') or ''),
+                str(row.get('openai_ocr_ocr', '') or ''),
+                str(row.get('ollama_ocr_ocr', '') or '')
+            ]
+            
+            # Find longest non-empty text for preview
+            best_text = max(ocr_texts, key=len) if any(ocr_texts) else ""
+            preview = best_text[:50] + '...' if len(best_text) > 50 else best_text
+            
+            values = [
+                row['filename'],
+                status_display,
+                preview,
                 row.get('title', ''),
                 row.get('creator', ''),
                 row.get('subject', '')
             ]
             self.tree.insert('', 'end', values=values)
         
-        # Update summary with workflow diagram
+        # Update analysis tab
         summary = self.ledger.get_summary()
-        summary_text = f"""📋 CODEBOOKS WORKFLOW:
+        analysis_text = f"""CODEBOOKS ANALYSIS REPORT
+{'='*50}
 
-📁 Files → 📄 OCR → 🤖 AI → 📝 Metadata
-
-📊 PROCESSING STATUS:
-
+📊 PROCESSING OVERVIEW:
 Total Files: {summary['total_files']}
 
-🤖 EasyOCR (AI-powered):
-  ✅ {summary['easyocr_completed']} | ⏳ {summary['easyocr_pending']} | ❌ {summary['easyocr_error']}
+🔍 OCR ENGINE PERFORMANCE:
+• EasyOCR:    ✅{summary['easyocr_completed']:3d} ⏳{summary['easyocr_pending']:3d} ❌{summary['easyocr_error']:3d}
+• Tesseract:  ✅{summary['tesseract_completed']:3d} ⏳{summary['tesseract_pending']:3d} ❌{summary['tesseract_error']:3d}
+• PyPDF2:     ✅{summary['pypdf2_completed']:3d} ⏳{summary['pypdf2_pending']:3d} ❌{summary['pypdf2_error']:3d}
+• OpenAI OCR: ✅{summary['openai_ocr_completed']:3d} ⏳{summary['openai_ocr_pending']:3d} ❌{summary['openai_ocr_error']:3d}
+• Ollama OCR: ✅{summary['ollama_ocr_completed']:3d} ⏳{summary['ollama_ocr_pending']:3d} ❌{summary['ollama_ocr_error']:3d}
 
-📄 Tesseract (Traditional):
-  ✅ {summary['tesseract_completed']} | ⏳ {summary['tesseract_pending']} | ❌ {summary['tesseract_error']}
-
-📋 PyPDF2 (Direct):
-  ✅ {summary['pypdf2_completed']} | ⏳ {summary['pypdf2_pending']} | ❌ {summary['pypdf2_error']}
-
-🤖📄 OpenAI OCR:
-  ✅ {summary['openai_ocr_completed']} | ⏳ {summary['openai_ocr_pending']} | ❌ {summary['openai_ocr_error']}
-
-🏠🤖 Ollama OCR:
-  ✅ {summary['ollama_ocr_completed']} | ⏳ {summary['ollama_ocr_pending']} | ❌ {summary['ollama_ocr_error']}
-
-📝 DUBLIN CORE METADATA:"""
+📝 METADATA FIELDS:"""
         
         for field, stats in summary['dublin_core_fields'].items():
             if stats['completed'] > 0 or stats['pending'] > 0 or stats['error'] > 0:
-                summary_text += f"\n  {field.title()}: {stats['completed']}/{stats['pending']}/{stats['error']}"
+                analysis_text += f"\n• {field.title():12} ✅{stats['completed']:3d} ⏳{stats['pending']:3d} ❌{stats['error']:3d}"
         
-        self.summary_text.delete(1.0, tk.END)
-        self.summary_text.insert(1.0, summary_text)
+        analysis_text += "\n\n" + "="*50 + "\n\nDouble-click files to view detailed OCR results."
+        
+        self.analysis_text.delete(1.0, tk.END)
+        self.analysis_text.insert(1.0, analysis_text)
     
     def on_tree_double_click(self, event):
         """Handle double-click on tree item to show full OCR text"""

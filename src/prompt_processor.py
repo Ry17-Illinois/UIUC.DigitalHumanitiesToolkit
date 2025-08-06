@@ -8,14 +8,26 @@ import json
 from openai import OpenAI
 from typing import List, Dict, Tuple, Optional
 
+try:
+    import ollama
+except ImportError:
+    ollama = None
+
 class PromptProcessor:
     """Handles AI-based metadata extraction using prompts"""
     
-    def __init__(self, api_key: Optional[str] = None):
-        if api_key:
-            os.environ["OPENAI_API_KEY"] = api_key
-        self.client = OpenAI()
+    def __init__(self, api_key: Optional[str] = None, model_type: str = "openai"):
+        self.model_type = model_type
         self.prompts = self.load_prompts()
+        
+        if model_type == "openai":
+            if api_key:
+                os.environ["OPENAI_API_KEY"] = api_key
+            self.client = OpenAI()
+        elif model_type == "ollama":
+            if ollama is None:
+                raise ImportError("Ollama not available")
+            self.ollama_model = self._get_available_ollama_model()
     
     def load_prompts(self) -> Dict[str, str]:
         """Load prompts from the prompts directory"""
@@ -40,37 +52,129 @@ class PromptProcessor:
         full_prompt = f"{prompt}\n\nDocument text:\n{text[:2000]}..."  # Limit text length
         
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are a metadata extraction expert specializing in Dublin Core standards."},
-                    {"role": "user", "content": full_prompt}
-                ],
-                max_tokens=500,
-                temperature=0.7
-            )
+            if self.model_type == "openai":
+                result = self._generate_openai(full_prompt)
+            elif self.model_type == "ollama":
+                result = self._generate_ollama(full_prompt)
+            else:
+                return [f"Unknown model type: {self.model_type}"]
             
-            result = response.choices[0].message.content
-            
-            # Try to parse as multiple examples
-            examples = []
-            lines = result.strip().split('\n')
-            for line in lines:
-                line = line.strip()
-                if line and not line.startswith('#') and not line.startswith('//'):
-                    # Remove numbering if present
-                    if line[0].isdigit() and '.' in line[:5]:
-                        line = line.split('.', 1)[1].strip()
-                    examples.append(line)
-            
-            # Ensure we have the requested number of examples
-            while len(examples) < num_examples and examples:
-                examples.append(examples[-1] + " (variant)")
-            
-            return examples[:num_examples] if examples else ["No examples generated"]
+            # Clean and parse the response
+            examples = self._parse_clean_response(result, num_examples)
+            return examples if examples else ["No examples generated"]
             
         except Exception as e:
             return [f"Error generating examples: {str(e)}"]
+    
+    def _generate_openai(self, prompt: str) -> str:
+        """Generate using OpenAI"""
+        system_prompt = """You are a metadata extraction expert. Extract ONLY the requested metadata values from the document text. 
+Respond with exactly 3 options, one per line, with no commentary, explanations, or numbering. 
+Just the clean metadata values."""
+        
+        response = self.client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=200,
+            temperature=0.3
+        )
+        return response.choices[0].message.content
+    
+    def _generate_ollama(self, prompt: str) -> str:
+        """Generate using Ollama"""
+        system_prompt = """You are a metadata extraction expert. Extract ONLY the requested metadata values from the document text. 
+Respond with exactly 3 options, one per line, with no commentary, explanations, or numbering. 
+Just the clean metadata values."""
+        
+        full_prompt = f"{system_prompt}\n\n{prompt}\n\nProvide exactly 3 clean metadata values, one per line:"
+        
+        response = ollama.generate(
+            model=self.ollama_model,
+            prompt=full_prompt
+        )
+        return response['response']
+    
+    def _parse_clean_response(self, result: str, num_examples: int) -> List[str]:
+        """Parse AI response and extract clean metadata values"""
+        examples = []
+        lines = result.strip().split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Skip common AI commentary patterns
+            skip_patterns = [
+                'here are', 'options for', 'suggestions:', 'based on', 
+                'the document', 'analysis', 'extracted', 'following'
+            ]
+            
+            if any(pattern in line.lower() for pattern in skip_patterns):
+                continue
+                
+            # Remove numbering and bullet points
+            if line[0].isdigit() and '.' in line[:5]:
+                line = line.split('.', 1)[1].strip()
+            elif line.startswith(('- ', '• ', '* ')):
+                line = line[2:].strip()
+                
+            # Skip if line is too short or contains common filler words
+            if len(line) < 3 or line.lower() in ['n/a', 'none', 'unknown', 'not applicable']:
+                continue
+                
+            examples.append(line)
+            
+            # Stop when we have enough examples
+            if len(examples) >= num_examples:
+                break
+        
+        # Ensure we have the requested number of examples
+        while len(examples) < num_examples and examples:
+            # Create variations of existing examples
+            base = examples[-1]
+            if ',' in base:
+                # Try splitting compound entries
+                parts = [p.strip() for p in base.split(',')]
+                if len(parts) > 1:
+                    examples.append(parts[0])
+                else:
+                    examples.append(f"{base} (alternative)")
+            else:
+                examples.append(f"{base} (variant)")
+        
+        return examples[:num_examples]
+    
+    def _get_available_ollama_model(self) -> str:
+        """Get the first available Ollama model"""
+        try:
+            models = ollama.list()
+            available_models = [m['name'] for m in models['models']]
+            print(f"Available Ollama models: {available_models}")
+            
+            # Prefer these models in order
+            preferred = ['gemma3', 'llama3.1', 'llama3', 'llama2', 'mistral']
+            for model in preferred:
+                for available in available_models:
+                    if model in available:
+                        print(f"Selected Ollama model: {available}")
+                        return available
+            
+            # Return first available model if none of the preferred ones found
+            if available_models:
+                selected = available_models[0]
+                print(f"Using first available model: {selected}")
+                return selected
+            else:
+                raise Exception("No Ollama models found. Please install a model with: ollama pull gemma3")
+                
+        except Exception as e:
+            # Try gemma3 directly as fallback
+            print(f"Model detection failed, trying gemma3 directly: {e}")
+            return "gemma3"
     
     def get_available_fields(self) -> List[str]:
         """Get list of available Dublin Core fields with prompts"""
