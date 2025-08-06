@@ -42,11 +42,15 @@ class LedgerManager:
                 df['openai_ocr_ocr'] = ''
             if 'openai_ocr_status' not in df.columns:
                 df['openai_ocr_status'] = 'pending'
+            if 'ollama_ocr_ocr' not in df.columns:
+                df['ollama_ocr_ocr'] = ''
+            if 'ollama_ocr_status' not in df.columns:
+                df['ollama_ocr_status'] = 'pending'
         else:
             # Create base columns
             columns = [
                 'file_id', 'filename', 'filepath', 'file_type', 'file_size',
-                'date_added', 'easyocr_ocr', 'easyocr_status', 'tesseract_ocr', 'tesseract_status', 'pypdf2_ocr', 'pypdf2_status', 'openai_ocr_ocr', 'openai_ocr_status'
+                'date_added', 'easyocr_ocr', 'easyocr_status', 'tesseract_ocr', 'tesseract_status', 'pypdf2_ocr', 'pypdf2_status', 'openai_ocr_ocr', 'openai_ocr_status', 'ollama_ocr_ocr', 'ollama_ocr_status'
             ] + self.DUBLIN_CORE_FIELDS + [f"{field}_status" for field in self.DUBLIN_CORE_FIELDS]
             
             df = pd.DataFrame(columns=columns)
@@ -83,7 +87,9 @@ class LedgerManager:
                 'pypdf2_ocr': '',
                 'pypdf2_status': 'pending',
                 'openai_ocr_ocr': '',
-                'openai_ocr_status': 'pending'
+                'openai_ocr_status': 'pending',
+                'ollama_ocr_ocr': '',
+                'ollama_ocr_status': 'pending'
             }
             
             # Initialize Dublin Core fields
@@ -117,7 +123,7 @@ class LedgerManager:
     
     def get_files_by_status(self, operation: str, status: str = 'pending') -> pd.DataFrame:
         """Get files by operation status"""
-        if operation in ['easyocr', 'tesseract', 'pypdf2', 'openai_ocr']:
+        if operation in ['easyocr', 'tesseract', 'pypdf2', 'openai_ocr', 'ollama_ocr']:
             return self.df[self.df[f'{operation}_status'] == status]
         elif operation in self.DUBLIN_CORE_FIELDS:
             return self.df[self.df[f"{operation}_status"] == status]
@@ -147,6 +153,9 @@ class LedgerManager:
             'openai_ocr_completed': len(self.df[self.df.get('openai_ocr_status', pd.Series()) == 'completed']),
             'openai_ocr_pending': len(self.df[self.df.get('openai_ocr_status', pd.Series()) == 'pending']),
             'openai_ocr_error': len(self.df[self.df.get('openai_ocr_status', pd.Series()) == 'error']),
+            'ollama_ocr_completed': len(self.df[self.df.get('ollama_ocr_status', pd.Series()) == 'completed']),
+            'ollama_ocr_pending': len(self.df[self.df.get('ollama_ocr_status', pd.Series()) == 'pending']),
+            'ollama_ocr_error': len(self.df[self.df.get('ollama_ocr_status', pd.Series()) == 'error']),
             'dublin_core_fields': {}
         }
         

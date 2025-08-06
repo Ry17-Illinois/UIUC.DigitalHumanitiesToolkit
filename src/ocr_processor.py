@@ -29,6 +29,11 @@ try:
 except ImportError:
     OpenAI = None
 
+try:
+    import ollama
+except ImportError:
+    ollama = None
+
 class BaseOCRModel(ABC):
     """Base class for OCR models"""
     
@@ -158,6 +163,48 @@ class PyPDF2OCRModel(BaseOCRModel):
     def name(self) -> str:
         return "pypdf2"
 
+class OllamaOCRModel(BaseOCRModel):
+    """Ollama local LLM image transcription implementation"""
+    
+    def __init__(self, model_name: str = "gemma3"):
+        if ollama is None:
+            raise ImportError("ollama not available")
+        
+        self.model_name = model_name
+        
+        # Test if Ollama is running and model is available
+        try:
+            models = ollama.list()
+            available_models = [m['name'] for m in models['models']]
+            if not any(model_name in m for m in available_models):
+                print(f"⚠️ Model {model_name} not found. Available models: {available_models}")
+        except Exception as e:
+            print(f"⚠️ Could not connect to Ollama: {e}")
+    
+    def process_image(self, image: Image.Image) -> str:
+        """Process image with Ollama local LLM"""
+        try:
+            # Convert image to bytes
+            buffered = io.BytesIO()
+            image.save(buffered, format="JPEG")
+            img_bytes = buffered.getvalue()
+            
+            # Send to Ollama
+            response = ollama.generate(
+                model=self.model_name,
+                prompt="Transcribe all text from this image. Only return the text content, no additional commentary.",
+                images=[img_bytes]
+            )
+            
+            return response['response']
+            
+        except Exception as e:
+            return f"Error: {str(e)}"
+    
+    @property
+    def name(self) -> str:
+        return "ollama_ocr"
+
 class OpenAIOCRModel(BaseOCRModel):
     """OpenAI GPT-4o image transcription implementation"""
     
@@ -243,6 +290,14 @@ class OCRProcessor:
             print("✅ OpenAI OCR initialized")
         except Exception as e:
             print(f"❌ OpenAI OCR initialization failed: {e}")
+    
+    def add_ollama_ocr(self, model_name: str = "gemma3"):
+        """Add Ollama OCR model"""
+        try:
+            self.models['ollama_ocr'] = OllamaOCRModel(model_name)
+            print(f"✅ Ollama OCR initialized with model: {model_name}")
+        except Exception as e:
+            print(f"❌ Ollama OCR initialization failed: {e}")
     
     def preprocess_image(self, img: Image.Image, model_name: str = None) -> Image.Image:
         """Preprocess image for better OCR results"""

@@ -87,35 +87,40 @@ class CodebooksApp:
         ttk.Label(control_frame, text="   AI-powered image transcription", 
                  font=("Arial", 8), foreground="gray").grid(row=10, column=0, sticky=tk.W)
         
-        ttk.Button(control_frame, text="3️⃣ Setup AI Prompts (🤖)", 
-                  command=self.setup_ai).grid(row=11, column=0, pady=2, sticky=tk.W)
-        ttk.Label(control_frame, text="   Configure OpenAI API key", 
+        ttk.Button(control_frame, text="2️⃣ Run Ollama OCR (🏠🤖)", 
+                  command=self.run_ollama_ocr).grid(row=11, column=0, pady=2, sticky=tk.W)
+        ttk.Label(control_frame, text="   Local LLM image transcription", 
                  font=("Arial", 8), foreground="gray").grid(row=12, column=0, sticky=tk.W)
         
-        ttk.Button(control_frame, text="4️⃣ Generate Metadata (📝)", 
-                  command=self.generate_metadata).grid(row=13, column=0, pady=2, sticky=tk.W)
-        ttk.Label(control_frame, text="   AI-powered Dublin Core extraction", 
+        ttk.Button(control_frame, text="3️⃣ Setup AI Prompts (🤖)", 
+                  command=self.setup_ai).grid(row=13, column=0, pady=2, sticky=tk.W)
+        ttk.Label(control_frame, text="   Configure OpenAI API key", 
                  font=("Arial", 8), foreground="gray").grid(row=14, column=0, sticky=tk.W)
         
-        ttk.Separator(control_frame, orient='horizontal').grid(row=15, column=0, sticky=(tk.W, tk.E), pady=10)
+        ttk.Button(control_frame, text="4️⃣ Generate Metadata (📝)", 
+                  command=self.generate_metadata).grid(row=15, column=0, pady=2, sticky=tk.W)
+        ttk.Label(control_frame, text="   AI-powered Dublin Core extraction", 
+                 font=("Arial", 8), foreground="gray").grid(row=16, column=0, sticky=tk.W)
         
-        ttk.Label(control_frame, text="🛠️ UTILITIES:", font=("Arial", 9, "bold")).grid(row=16, column=0, sticky=tk.W)
+        ttk.Separator(control_frame, orient='horizontal').grid(row=17, column=0, sticky=(tk.W, tk.E), pady=10)
+        
+        ttk.Label(control_frame, text="🛠️ UTILITIES:", font=("Arial", 9, "bold")).grid(row=18, column=0, sticky=tk.W)
         
         ttk.Button(control_frame, text="🔍 Evaluate OCR Quality", 
-                  command=self.evaluate_ocr).grid(row=17, column=0, pady=2, sticky=tk.W)
+                  command=self.evaluate_ocr).grid(row=19, column=0, pady=2, sticky=tk.W)
         ttk.Label(control_frame, text="   Compare OCR engine performance", 
-                 font=("Arial", 8), foreground="gray").grid(row=18, column=0, sticky=tk.W)
+                 font=("Arial", 8), foreground="gray").grid(row=20, column=0, sticky=tk.W)
         
         ttk.Button(control_frame, text="🗑️ Clear Selected Rows", 
-                  command=self.clear_rows).grid(row=19, column=0, pady=2, sticky=tk.W)
+                  command=self.clear_rows).grid(row=21, column=0, pady=2, sticky=tk.W)
         
         ttk.Button(control_frame, text="🔄 Refresh Display", 
-                  command=self.refresh_display).grid(row=20, column=0, pady=2, sticky=tk.W)
+                  command=self.refresh_display).grid(row=22, column=0, pady=2, sticky=tk.W)
         
         # Status display
         self.status_var = tk.StringVar(value="Ready")
         status_label = ttk.Label(control_frame, textvariable=self.status_var)
-        status_label.grid(row=21, column=0, pady=(10, 0), sticky=tk.W)
+        status_label.grid(row=23, column=0, pady=(10, 0), sticky=tk.W)
         
         # Data display frame
         data_frame = ttk.LabelFrame(main_frame, text="Metadata Ledger", padding="10")
@@ -124,12 +129,12 @@ class CodebooksApp:
         data_frame.rowconfigure(0, weight=1)
         
         # Treeview for data display
-        columns = ['filename', 'easyocr_status', 'tesseract_status', 'pypdf2_status', 'openai_ocr_status', 'easyocr_text', 'tesseract_text', 'pypdf2_text', 'openai_ocr_text', 'title', 'creator', 'subject']
+        columns = ['filename', 'easyocr_status', 'tesseract_status', 'pypdf2_status', 'openai_ocr_status', 'ollama_ocr_status', 'easyocr_text', 'tesseract_text', 'pypdf2_text', 'openai_ocr_text', 'ollama_ocr_text', 'title', 'creator', 'subject']
         self.tree = ttk.Treeview(data_frame, columns=columns, show='headings', height=20)
         
         for col in columns:
             self.tree.heading(col, text=col.replace('_', ' ').title())
-            if col in ['easyocr_text', 'tesseract_text', 'pypdf2_text', 'openai_ocr_text']:
+            if col in ['easyocr_text', 'tesseract_text', 'pypdf2_text', 'openai_ocr_text', 'ollama_ocr_text']:
                 self.tree.column(col, width=100)
             else:
                 self.tree.column(col, width=80)
@@ -339,16 +344,90 @@ class CodebooksApp:
         
         threading.Thread(target=openai_worker, daemon=True).start()
     
+    def run_ollama_ocr(self):
+        """Run Ollama OCR on pending files"""
+        # Check if Ollama is available and get model name
+        model_name = simpledialog.askstring("Ollama Model", 
+                                           "Enter Ollama model name:", 
+                                           initialvalue="gemma3")
+        if not model_name:
+            return
+        
+        # Add Ollama OCR model
+        self.ocr.add_ollama_ocr(model_name)
+        
+        if 'ollama_ocr' not in self.ocr.models:
+            messagebox.showerror("Ollama OCR Not Available", 
+                               "Ollama OCR not available. Make sure Ollama is running and the model is installed.")
+            return
+        
+        pending_files = self.ledger.get_files_by_status('ollama_ocr', 'pending')
+        
+        if pending_files.empty:
+            messagebox.showinfo("Ollama OCR", "No files pending Ollama OCR processing")
+            return
+        
+        def ollama_worker():
+            self.status_var.set("Running Ollama OCR...")
+            processed = 0
+            
+            for _, row in pending_files.iterrows():
+                self.status_var.set(f"Ollama OCR: {processed + 1}/{len(pending_files)} - {row['filename']}")
+                
+                try:
+                    text, status = self.ocr.process_file(row['filepath'], 'ollama_ocr')
+                    self.ledger.update_ocr_result(row['file_id'], text, status, 'ollama_ocr')
+                except Exception as e:
+                    error_text = f"Error processing {row['filename']}: {str(e)}"
+                    self.ledger.update_ocr_result(row['file_id'], error_text, 'error', 'ollama_ocr')
+                    print(f"Ollama OCR error: {e}")
+                processed += 1
+            
+            self.status_var.set("Ollama OCR completed")
+            self.root.after(0, self.refresh_display)
+        
+        threading.Thread(target=ollama_worker, daemon=True).start()
+    
+    def launch_ollama(self):
+        """Launch Ollama service"""
+        import subprocess
+        import platform
+        
+        try:
+            system = platform.system().lower()
+            if system == "windows":
+                # Try to start Ollama service on Windows
+                subprocess.Popen(["ollama", "serve"], creationflags=subprocess.CREATE_NO_WINDOW)
+            else:
+                # Unix-like systems
+                subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            
+            messagebox.showinfo("Ollama Launch", "Ollama service started successfully!\n\nYou can now use Ollama OCR.")
+        except FileNotFoundError:
+            messagebox.showerror("Ollama Not Found", 
+                               "Ollama not found. Please install Ollama from:\nhttps://ollama.ai")
+        except Exception as e:
+            messagebox.showerror("Launch Error", f"Failed to launch Ollama: {str(e)}")
+    
     def setup_ai(self):
-        """Setup AI API key for prompt processing"""
-        api_key = simpledialog.askstring("OpenAI API Key", 
-                                        "Enter your OpenAI API key:", show='*')
-        if api_key:
-            try:
-                self.prompt_processor = PromptProcessor(api_key)
-                messagebox.showinfo("AI Setup", "AI processor initialized successfully")
-            except Exception as e:
-                messagebox.showerror("AI Setup Error", f"Failed to initialize AI: {str(e)}")
+        """Setup AI API key for prompt processing and launch Ollama"""
+        # Ask user what they want to configure
+        choice = messagebox.askyesnocancel("AI Setup", 
+                                          "Yes: Setup OpenAI API\nNo: Launch Ollama\nCancel: Cancel")
+        
+        if choice is None:  # Cancel
+            return
+        elif choice:  # Yes - OpenAI setup
+            api_key = simpledialog.askstring("OpenAI API Key", 
+                                            "Enter your OpenAI API key:", show='*')
+            if api_key:
+                try:
+                    self.prompt_processor = PromptProcessor(api_key)
+                    messagebox.showinfo("AI Setup", "AI processor initialized successfully")
+                except Exception as e:
+                    messagebox.showerror("AI Setup Error", f"Failed to initialize AI: {str(e)}")
+        else:  # No - Launch Ollama
+            self.launch_ollama()
     
     def generate_metadata(self):
         """Generate metadata using AI prompts"""
@@ -466,6 +545,8 @@ class CodebooksApp:
                        variable=ocr_var, value="pypdf2").pack(anchor=tk.W)
         ttk.Radiobutton(ocr_frame, text="🤖📄 OpenAI OCR (AI transcription)", 
                        variable=ocr_var, value="openai_ocr").pack(anchor=tk.W)
+        ttk.Radiobutton(ocr_frame, text="🏠🤖 Ollama OCR (Local LLM)", 
+                       variable=ocr_var, value="ollama_ocr").pack(anchor=tk.W)
         
         # Dublin Core Field Selection
         ttk.Label(left_panel, text="2️⃣ Select Dublin Core Field:", font=("Arial", 10, "bold")).pack(anchor=tk.W, pady=(15,5))
@@ -660,10 +741,12 @@ class CodebooksApp:
             tesseract_text = str(row.get('tesseract_ocr', '') or '')
             pypdf2_text = str(row.get('pypdf2_ocr', '') or '')
             openai_text = str(row.get('openai_ocr_ocr', '') or '')
+            ollama_text = str(row.get('ollama_ocr_ocr', '') or '')
             easyocr_display = easyocr_text[:20] + '...' if len(easyocr_text) > 20 else easyocr_text
             tesseract_display = tesseract_text[:20] + '...' if len(tesseract_text) > 20 else tesseract_text
             pypdf2_display = pypdf2_text[:20] + '...' if len(pypdf2_text) > 20 else pypdf2_text
             openai_display = openai_text[:20] + '...' if len(openai_text) > 20 else openai_text
+            ollama_display = ollama_text[:20] + '...' if len(ollama_text) > 20 else ollama_text
             
             values = [
                 row['filename'],
@@ -671,10 +754,12 @@ class CodebooksApp:
                 row.get('tesseract_status', 'pending'),
                 row.get('pypdf2_status', 'pending'),
                 row.get('openai_ocr_status', 'pending'),
+                row.get('ollama_ocr_status', 'pending'),
                 easyocr_display,
                 tesseract_display,
                 pypdf2_display,
                 openai_display,
+                ollama_display,
                 row.get('title', ''),
                 row.get('creator', ''),
                 row.get('subject', '')
@@ -702,6 +787,9 @@ Total Files: {summary['total_files']}
 
 🤖📄 OpenAI OCR:
   ✅ {summary['openai_ocr_completed']} | ⏳ {summary['openai_ocr_pending']} | ❌ {summary['openai_ocr_error']}
+
+🏠🤖 Ollama OCR:
+  ✅ {summary['ollama_ocr_completed']} | ⏳ {summary['ollama_ocr_pending']} | ❌ {summary['ollama_ocr_error']}
 
 📝 DUBLIN CORE METADATA:"""
         
@@ -731,6 +819,7 @@ Total Files: {summary['total_files']}
         tesseract_text = str(row.get('tesseract_ocr', '') or '')
         pypdf2_text = str(row.get('pypdf2_ocr', '') or '')
         openai_text = str(row.get('openai_ocr_ocr', '') or '')
+        ollama_text = str(row.get('ollama_ocr_ocr', '') or '')
         
         # Show full text in dialog with tabs
         dialog = tk.Toplevel(self.root)
@@ -776,6 +865,15 @@ Total Files: {summary['total_files']}
             ai_text.pack(fill=tk.BOTH, expand=True)
             ai_text.insert(1.0, openai_text)
             ai_text.config(state=tk.DISABLED)
+        
+        # Ollama OCR tab
+        if ollama_text:
+            ollama_frame = ttk.Frame(notebook)
+            notebook.add(ollama_frame, text="Ollama OCR")
+            ollama_text_widget = tk.Text(ollama_frame, wrap=tk.WORD)
+            ollama_text_widget.pack(fill=tk.BOTH, expand=True)
+            ollama_text_widget.insert(1.0, ollama_text)
+            ollama_text_widget.config(state=tk.DISABLED)
         
         ttk.Button(dialog, text="Close", command=dialog.destroy).pack(pady=5)
     
@@ -839,7 +937,8 @@ Total Files: {summary['total_files']}
                 'easyocr': file_data.get('easyocr_ocr', ''),
                 'tesseract': file_data.get('tesseract_ocr', ''),
                 'pypdf2': file_data.get('pypdf2_ocr', ''),
-                'openai_ocr': file_data.get('openai_ocr_ocr', '')
+                'openai_ocr': file_data.get('openai_ocr_ocr', ''),
+                'ollama_ocr': file_data.get('ollama_ocr_ocr', '')
             }
             evaluation = OCREvaluator.evaluate_ocr_engines(ocr_results)
             all_results.append((file_data['filename'], evaluation))
@@ -909,6 +1008,8 @@ Total Files: {summary['total_files']}
                        value="pypdf2").pack(anchor=tk.W, padx=5)
         ttk.Radiobutton(gt_source_frame, text="🤖📄 OpenAI OCR as Reference", variable=gt_source_var, 
                        value="openai_ocr").pack(anchor=tk.W, padx=5)
+        ttk.Radiobutton(gt_source_frame, text="🏠🤖 Ollama OCR as Reference", variable=gt_source_var, 
+                       value="ollama_ocr").pack(anchor=tk.W, padx=5)
         
         # Ground truth text input
         gt_text_label = ttk.Label(gt_frame, text="Manual Ground Truth Text:")
@@ -977,6 +1078,8 @@ Total Files: {summary['total_files']}
                 
                 if gt_source == 'openai_ocr':
                     ground_truth = str(selected_file.get('openai_ocr_ocr', '') or '')
+                elif gt_source == 'ollama_ocr':
+                    ground_truth = str(selected_file.get('ollama_ocr_ocr', '') or '')
                 else:
                     ground_truth = str(selected_file.get(f'{gt_source}_ocr', '') or '')
                 
@@ -1000,7 +1103,8 @@ Total Files: {summary['total_files']}
                 'easyocr': selected_file.get('easyocr_ocr', ''),
                 'tesseract': selected_file.get('tesseract_ocr', ''),
                 'pypdf2': selected_file.get('pypdf2_ocr', ''),
-                'openai_ocr': selected_file.get('openai_ocr_ocr', '')
+                'openai_ocr': selected_file.get('openai_ocr_ocr', ''),
+                'ollama_ocr': selected_file.get('ollama_ocr_ocr', '')
             }
             
             # Remove the reference engine from comparison if using OCR as ground truth
@@ -1073,7 +1177,7 @@ Total Files: {summary['total_files']}
         report += "=" * 50 + "\n\n"
         
         # Engine performance summary
-        engine_stats = {'easyocr': [], 'tesseract': [], 'pypdf2': [], 'openai_ocr': []}
+        engine_stats = {'easyocr': [], 'tesseract': [], 'pypdf2': [], 'openai_ocr': [], 'ollama_ocr': []}
         
         for filename, evaluation in all_results:
             for engine, metrics in evaluation.items():
@@ -1122,7 +1226,7 @@ Total Files: {summary['total_files']}
                 widget.destroy()
         
         # Calculate average quality scores
-        engine_scores = {'easyocr': [], 'tesseract': [], 'pypdf2': [], 'openai_ocr': []}
+        engine_scores = {'easyocr': [], 'tesseract': [], 'pypdf2': [], 'openai_ocr': [], 'ollama_ocr': []}
         
         for filename, evaluation in all_results:
             for engine, metrics in evaluation.items():
@@ -1140,7 +1244,7 @@ Total Files: {summary['total_files']}
             return
         
         fig, ax = plt.subplots(figsize=(8, 5))
-        bars = ax.bar(engines, scores, color=['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4'])
+        bars = ax.bar(engines, scores, color=['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFA07A'])
         ax.set_ylabel('Average Quality Score')
         ax.set_title('OCR Engine Quality Comparison')
         ax.set_ylim(0, 1)
@@ -1167,8 +1271,8 @@ Total Files: {summary['total_files']}
             if isinstance(widget, tk.Canvas):
                 widget.destroy()
         
-        engines = ['easyocr', 'tesseract', 'pypdf2', 'openai_ocr']
-        similarity_matrix = np.zeros((4, 4))
+        engines = ['easyocr', 'tesseract', 'pypdf2', 'openai_ocr', 'ollama_ocr']
+        similarity_matrix = np.zeros((5, 5))
         
         # Calculate pairwise similarities
         for i, engine1 in enumerate(engines):
@@ -1194,14 +1298,14 @@ Total Files: {summary['total_files']}
         im = ax.imshow(similarity_matrix, cmap='RdYlBu', vmin=0, vmax=1)
         
         # Set ticks and labels
-        ax.set_xticks(range(4))
-        ax.set_yticks(range(4))
+        ax.set_xticks(range(5))
+        ax.set_yticks(range(5))
         ax.set_xticklabels([e.upper() for e in engines])
         ax.set_yticklabels([e.upper() for e in engines])
         
         # Add text annotations
-        for i in range(4):
-            for j in range(4):
+        for i in range(5):
+            for j in range(5):
                 text = ax.text(j, i, f'{similarity_matrix[i, j]:.2f}',
                              ha="center", va="center", color="black")
         
@@ -1226,7 +1330,7 @@ Total Files: {summary['total_files']}
         
         fig, ax = plt.subplots(figsize=(8, 6))
         
-        colors = {'easyocr': '#FF6B6B', 'tesseract': '#4ECDC4', 'pypdf2': '#45B7D1', 'openai_ocr': '#96CEB4'}
+        colors = {'easyocr': '#FF6B6B', 'tesseract': '#4ECDC4', 'pypdf2': '#45B7D1', 'openai_ocr': '#96CEB4', 'ollama_ocr': '#FFA07A'}
         
         for engine, color in colors.items():
             lengths = []
