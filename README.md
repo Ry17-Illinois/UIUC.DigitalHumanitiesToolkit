@@ -1,95 +1,189 @@
 # CODEBOOKS - Digital Humanities Metadata Pipeline
 
-A simplified Python application for extracting and managing metadata from archival documents using OCR and AI-powered prompts.
+A comprehensive Python application for extracting and managing metadata from archival documents using multiple OCR engines and AI-powered analysis.
 
-## Features
+## ✨ Features
 
-- **File Ingestion**: Add individual files or entire directories with variable structure
-- **OCR Processing**: Extract text using Tesseract (extensible for additional OCR models)
-- **AI Metadata Extraction**: Generate Dublin Core metadata using customizable prompts
-- **Interactive Approval**: Review and approve/reject AI-generated metadata suggestions
-- **Ledger Management**: Track all operations and store metadata in a CSV ledger
-- **Error Handling**: Clear and reimport problematic entries with confirmation
+### 🔍 **Multi-Engine OCR Processing**
+- **EasyOCR**: GPU-accelerated AI-powered text extraction
+- **Tesseract**: Traditional OCR with advanced preprocessing
+- **PyPDF2**: Direct PDF text extraction
+- **OpenAI OCR**: GPT-4o vision-based transcription
+- **Ollama OCR**: Local LLM image transcription (privacy-focused)
 
-## Installation
+### 🤖 **Dual AI Metadata Generation**
+- **OpenAI GPT**: Cloud-based metadata extraction using GPT-4o-mini
+- **Ollama Local**: Privacy-focused local LLM processing
+- **Smart Prompting**: Optimized prompts for clean metadata extraction
+- **Interactive Approval**: Review and approve AI-generated suggestions
 
-1. Install required dependencies:
+### 📊 **Advanced Analysis & Evaluation**
+- **OCR Quality Assessment**: Compare engine performance with standard metrics
+- **Ground Truth Comparison**: Evaluate accuracy using reference text
+- **Visual Analytics**: Charts and graphs for performance analysis
+- **Cross-Engine Evaluation**: Comprehensive quality scoring
+
+### 🎨 **Modern Interface**
+- **Streamlined Workflow**: Intuitive step-by-step process
+- **Resizable Panels**: Customizable workspace layout
+- **Tabbed Interface**: Separate processing and analysis views
+- **Progress Indicators**: Real-time feedback on operations
+- **Keyboard Shortcuts**: Power user efficiency (Ctrl+O, Ctrl+R, F5)
+
+## 🚀 Installation
+
+### 1. Python Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-2. Install Tesseract OCR:
-   - Windows: Download from https://github.com/UB-Mannheim/tesseract/wiki
-   - macOS: `brew install tesseract`
-   - Linux: `sudo apt-get install tesseract-ocr`
+### 2. OCR Engines Setup
 
-## Usage
+**Tesseract OCR:**
+- Windows: Download from https://github.com/UB-Mannheim/tesseract/wiki
+- macOS: `brew install tesseract`
+- Linux: `sudo apt-get install tesseract-ocr`
 
-1. Run the application:
+**Ollama (Optional - for local AI):**
+```bash
+# Install Ollama from https://ollama.ai
+# Then pull a vision model:
+ollama pull gemma3
+```
+
+### 3. API Keys (Optional)
+- **OpenAI**: Get API key from https://platform.openai.com/api-keys
+- Configure through the application's "Configure AI" button
+
+## 📖 Usage
+
+### Quick Start
 ```bash
 python main.py
 ```
 
-2. **Add Files**: Use "Add Files/Directory" to import documents
-3. **Run OCR**: Process documents with "Run Tesseract OCR"
-4. **Setup AI**: Enter your OpenAI API key with "Setup AI Prompts"
-5. **Generate Metadata**: Extract Dublin Core metadata with "Generate Metadata"
+### Workflow
+1. **📁 Add Files**: Import individual files or entire directories
+2. **🔍 OCR Processing**: Choose engine (EasyOCR, Tesseract, PyPDF2, OpenAI, Ollama) and run
+3. **🤖 AI Setup**: Configure OpenAI API or launch Ollama for local processing
+4. **📝 Generate Metadata**: Select AI model and extract Dublin Core metadata
+5. **🛠️ Analyze**: Evaluate OCR quality and compare engine performance
+
+### Keyboard Shortcuts
+- `Ctrl+O`: Add files
+- `Ctrl+R`: Run selected OCR engine
+- `F5`: Refresh display
 
 ## File Structure
 
 ```
 CODEBOOKS/
-├── main.py              # Main GUI application
+├── main.py                  # Modern GUI application
 ├── src/
-│   ├── ledger_manager.py    # Metadata ledger management
-│   ├── ocr_processor.py     # OCR processing (extensible)
-│   └── prompt_processor.py  # AI prompt processing
-├── prompts/             # Dublin Core prompt templates
-│   ├── title.txt
-│   ├── creator.txt
-│   ├── subject.txt
-│   ├── description.txt
-│   ├── date.txt
-│   └── type.txt
-├── data/               # Generated ledger files
-└── requirements.txt    # Python dependencies
+│   ├── ledger_manager.py    # CSV-based metadata management
+│   ├── ocr_processor.py     # Multi-engine OCR processing
+│   ├── prompt_processor.py  # Dual AI metadata extraction
+│   └── ocr_evaluator.py     # Quality assessment & analytics
+├── prompts/                 # Dublin Core prompt templates
+│   ├── title.txt           # Title extraction prompts
+│   ├── creator.txt         # Creator/author prompts
+│   ├── subject.txt         # Subject classification
+│   ├── description.txt     # Content description
+│   ├── date.txt           # Date extraction
+│   └── type.txt           # Document type classification
+├── metadata_ledger.csv     # Generated metadata database
+└── requirements.txt        # Python dependencies
+
+## 🤝 Contributing
+
+Contributions welcome! Areas for development:
+- Additional OCR engines
+- New AI model integrations  
+- Enhanced evaluation metrics
+- UI/UX improvements
+- Documentation and tutorials
+
+## 📄 License
+
+Open source - see LICENSE file for details.
 ```
 
-## Dublin Core Fields Supported
+## 📋 Dublin Core Metadata Fields
 
-- Title
-- Creator
-- Subject
-- Description
-- Date
-- Type
-- (Additional fields can be added by creating prompt files)
+**Currently Supported:**
+- **Title**: Document titles and headings
+- **Creator**: Authors, organizations, publishers
+- **Subject**: Topics, keywords, classifications
+- **Description**: Content summaries and abstracts
+- **Date**: Creation, publication, or modification dates
+- **Type**: Document format and genre classification
 
-## Extending the System
+**Extensible**: Add new fields by creating prompt files in `prompts/` directory
 
-### Adding New OCR Models
+## 🔧 Extending the System
 
-1. Create a new class inheriting from `BaseOCRModel` in `ocr_processor.py`
-2. Implement the `process_image()` method and `name` property
-3. Add the model to the OCRProcessor using `add_model()`
+### Adding New OCR Engines
+```python
+class CustomOCRModel(BaseOCRModel):
+    def process_image(self, image: Image.Image) -> str:
+        # Your OCR implementation
+        return extracted_text
+    
+    @property
+    def name(self) -> str:
+        return "custom_ocr"
 
-### Adding New Dublin Core Fields
+# Add to processor
+ocr_processor.add_model("custom", CustomOCRModel())
+```
 
-1. Create a new `.txt` file in the `prompts/` directory
-2. Write a prompt that instructs the AI how to extract that metadata field
-3. The field will automatically appear in the metadata generation interface
+### Adding Dublin Core Fields
+1. Create `prompts/new_field.txt` with extraction instructions
+2. Field automatically appears in metadata generation interface
+3. Results stored in ledger with status tracking
 
-## Data Management
+### Custom AI Models
+- Extend `PromptProcessor` for new AI providers
+- Implement `_generate_custom()` method
+- Add to model selection dropdown
 
-- All metadata is stored in `metadata_ledger.csv`
-- Each file gets a unique ID for tracking
-- Operations can be run on individual files or in batch
-- Failed operations can be cleared and re-run
-- Confirmation required for data deletion
+## 💾 Data Management
 
-## Requirements
+### Ledger System
+- **CSV Storage**: All metadata in `metadata_ledger.csv`
+- **Unique IDs**: Each file tracked with UUID
+- **Status Tracking**: Monitor processing state for all engines
+- **Batch Operations**: Process multiple files simultaneously
+- **Error Recovery**: Clear and retry failed operations
+- **Data Safety**: Confirmation required for deletions
 
-- Python 3.7+
-- OpenAI API key (for AI metadata extraction)
-- Tesseract OCR installed on system
-- Supported file formats: JPG, PNG, TIFF, PDF
+### OCR Results Storage
+- **Multi-Engine Support**: Separate columns for each OCR engine
+- **Text Preservation**: Full OCR output stored and displayable
+- **Quality Metrics**: Performance scores and comparisons
+- **Export Ready**: CSV format for analysis in other tools
+
+## 📋 Requirements
+
+### System Requirements
+- **Python**: 3.8+ (3.10+ recommended)
+- **Memory**: 4GB RAM minimum (8GB+ for GPU acceleration)
+- **Storage**: 1GB free space for models and data
+
+### Optional Components
+- **OpenAI API Key**: For cloud-based AI metadata generation
+- **CUDA GPU**: For EasyOCR acceleration (optional)
+- **Ollama**: For local AI processing (privacy-focused)
+
+### Supported File Formats
+- **Images**: JPG, JPEG, PNG, TIF, TIFF
+- **Documents**: PDF (both text and image-based)
+- **Batch Processing**: Entire directories with mixed formats
+
+## 🎯 Use Cases
+
+- **Digital Archives**: Batch metadata extraction for historical documents
+- **Library Sciences**: Cataloging and classification workflows
+- **Research Projects**: OCR quality assessment and comparison
+- **Document Digitization**: Automated metadata generation pipelines
+- **Privacy-Sensitive Work**: Local processing with Ollama integration
