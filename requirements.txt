@@ -8,5 +8,6 @@ pytesseract>=0.3.10
 PyPDF2>=3.0.0
 matplotlib>=3.5.0
 ollama>=0.1.0
+PyMuPDF>=1.23.0
 # HAL 9000 Terminal Interface - No additional dependencies required
 # Uses only Python standard library modules: time, random, os

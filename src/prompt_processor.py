@@ -178,4 +178,75 @@ Just the clean metadata values."""
     
     def get_available_fields(self) -> List[str]:
         """Get list of available Dublin Core fields with prompts"""
-        return list(self.prompts.keys())
+
+    
+    def classify_document_type(self, image_path: str) -> str:
+        """Classify document as handwriting, typed, mixed-text, or image"""
+        try:
+            if self.model_type == "openai":
+                return self._classify_openai(image_path)
+            elif self.model_type == "ollama":
+                return self._classify_ollama(image_path)
+            else:
+                return "error: unknown model type"
+        except Exception as e:
+            return f"error: {str(e)}"
+    
+    def _classify_openai(self, image_path: str) -> str:
+        """Classify document using OpenAI vision model"""
+        import base64
+        from PIL import Image
+        import io
+        
+        # Load and encode image
+        with Image.open(image_path) as img:
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+            buffered = io.BytesIO()
+            img.save(buffered, format="JPEG")
+            img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        
+        response = self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Classify this document as one of: 'handwriting', 'typed', 'mixed-text', or 'image'. Return only the classification word."},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{img_str}"
+                            },
+                        },
+                    ],
+                }
+            ],
+            max_tokens=10,
+            temperature=0
+        )
+        
+        result = response.choices[0].message.content.strip().lower()
+        valid_types = ['handwriting', 'typed', 'mixed-text', 'image']
+        return result if result in valid_types else 'image'
+    
+    def _classify_ollama(self, image_path: str) -> str:
+        """Classify document using Ollama vision model"""
+        from PIL import Image
+        import io
+        
+        # Load image
+        with Image.open(image_path) as img:
+            buffered = io.BytesIO()
+            img.save(buffered, format="JPEG")
+            img_bytes = buffered.getvalue()
+        
+        response = ollama.generate(
+            model=self.ollama_model,
+            prompt="Classify this document as one of: 'handwriting', 'typed', 'mixed-text', or 'image'. Return only the classification word.",
+            images=[img_bytes]
+        )
+        
+        result = response['response'].strip().lower()
+        valid_types = ['handwriting', 'typed', 'mixed-text', 'image']
+        return result if result in valid_types else 'image'

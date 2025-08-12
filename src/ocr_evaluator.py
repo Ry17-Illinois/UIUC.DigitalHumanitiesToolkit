@@ -101,6 +101,30 @@ class OCREvaluator:
         
         return max(0.0, min(1.0, score))
     
+    @staticmethod
+    def quality_score_with_ground_truth(text: str, ground_truth: str) -> float:
+        """Calculate quality score based on ground truth comparison"""
+        if not text or not text.strip():
+            return 0.0
+        if not ground_truth or not ground_truth.strip():
+            return OCREvaluator.quality_score(text)  # Fallback to heuristic
+        
+        # Calculate similarity-based quality (0.0 to 1.0)
+        similarity = OCREvaluator.calculate_similarity(ground_truth, text)
+        
+        # Calculate error rates and convert to quality scores
+        cer = OCREvaluator.calculate_cer(ground_truth, text)
+        wer = OCREvaluator.calculate_wer(ground_truth, text)
+        
+        # Convert error rates to quality scores (capped at reasonable values)
+        char_quality = max(0.0, 1.0 - min(cer, 2.0))  # Cap CER at 2.0
+        word_quality = max(0.0, 1.0 - min(wer, 2.0))  # Cap WER at 2.0
+        
+        # Weighted combination: similarity (60%), character accuracy (25%), word accuracy (15%)
+        quality = (0.6 * similarity) + (0.25 * char_quality) + (0.15 * word_quality)
+        
+        return max(0.0, min(1.0, quality))
+    
     @classmethod
     def evaluate_ocr_engines(cls, ocr_results: Dict[str, str], ground_truth: Optional[str] = None) -> Dict:
         """Evaluate multiple OCR engines"""
@@ -130,6 +154,7 @@ class OCREvaluator:
                 engine_result['cer'] = cls.calculate_cer(ground_truth, text)
                 engine_result['wer'] = cls.calculate_wer(ground_truth, text)
                 engine_result['similarity_to_ground_truth'] = cls.calculate_similarity(ground_truth, text)
+                engine_result['quality_score'] = cls.quality_score_with_ground_truth(text, ground_truth)
             
             results[engine] = engine_result
         

@@ -46,11 +46,18 @@ class LedgerManager:
                 df['ollama_ocr_ocr'] = ''
             if 'ollama_ocr_status' not in df.columns:
                 df['ollama_ocr_status'] = 'pending'
+            if 'document_type' not in df.columns:
+                df['document_type'] = ''
+            if 'document_type_status' not in df.columns:
+                df['document_type_status'] = 'pending'
+            if 'named_entities' not in df.columns:
+                df['named_entities'] = ''
         else:
             # Create base columns
             columns = [
                 'file_id', 'filename', 'filepath', 'file_type', 'file_size',
-                'date_added', 'easyocr_ocr', 'easyocr_status', 'tesseract_ocr', 'tesseract_status', 'pypdf2_ocr', 'pypdf2_status', 'openai_ocr_ocr', 'openai_ocr_status', 'ollama_ocr_ocr', 'ollama_ocr_status'
+                'date_added', 'easyocr_ocr', 'easyocr_status', 'tesseract_ocr', 'tesseract_status', 'pypdf2_ocr', 'pypdf2_status', 'openai_ocr_ocr', 'openai_ocr_status', 'ollama_ocr_ocr', 'ollama_ocr_status',
+                'document_type', 'document_type_status', 'named_entities'
             ] + self.DUBLIN_CORE_FIELDS + [f"{field}_status" for field in self.DUBLIN_CORE_FIELDS]
             
             df = pd.DataFrame(columns=columns)
@@ -73,11 +80,13 @@ class LedgerManager:
             if not self.df[self.df['filepath'] == file_path].empty:
                 continue
             
+            file_type = Path(file_path).suffix.lower()
+            
             file_info = {
                 'file_id': str(uuid.uuid4()),
                 'filename': os.path.basename(file_path),
                 'filepath': file_path,
-                'file_type': Path(file_path).suffix.lower(),
+                'file_type': file_type,
                 'file_size': os.path.getsize(file_path),
                 'date_added': pd.Timestamp.now(),
                 'easyocr_ocr': '',
@@ -89,7 +98,10 @@ class LedgerManager:
                 'openai_ocr_ocr': '',
                 'openai_ocr_status': 'pending',
                 'ollama_ocr_ocr': '',
-                'ollama_ocr_status': 'pending'
+                'ollama_ocr_status': 'pending',
+                'document_type': 'document' if file_type == '.pdf' else '',
+                'document_type_status': 'completed' if file_type == '.pdf' else 'pending',
+                'named_entities': ''
             }
             
             # Initialize Dublin Core fields
@@ -121,9 +133,22 @@ class LedgerManager:
         self.df.loc[mask, f"{field}_status"] = status
         self.save_ledger()
     
+    def update_document_type(self, file_id: str, doc_type: str, status: str = 'completed'):
+        """Update document type classification"""
+        mask = self.df['file_id'] == file_id
+        self.df.loc[mask, 'document_type'] = doc_type
+        self.df.loc[mask, 'document_type_status'] = status
+        self.save_ledger()
+    
+    def update_named_entities(self, file_id: str, entities: str):
+        """Update named entities for a file"""
+        mask = self.df['file_id'] == file_id
+        self.df.loc[mask, 'named_entities'] = entities
+        self.save_ledger()
+    
     def get_files_by_status(self, operation: str, status: str = 'pending') -> pd.DataFrame:
         """Get files by operation status"""
-        if operation in ['easyocr', 'tesseract', 'pypdf2', 'openai_ocr', 'ollama_ocr']:
+        if operation in ['easyocr', 'tesseract', 'pypdf2', 'openai_ocr', 'ollama_ocr', 'document_type']:
             return self.df[self.df[f'{operation}_status'] == status]
         elif operation in self.DUBLIN_CORE_FIELDS:
             return self.df[self.df[f"{operation}_status"] == status]
@@ -156,6 +181,9 @@ class LedgerManager:
             'ollama_ocr_completed': len(self.df[self.df.get('ollama_ocr_status', pd.Series()) == 'completed']),
             'ollama_ocr_pending': len(self.df[self.df.get('ollama_ocr_status', pd.Series()) == 'pending']),
             'ollama_ocr_error': len(self.df[self.df.get('ollama_ocr_status', pd.Series()) == 'error']),
+            'document_type_completed': len(self.df[self.df.get('document_type_status', pd.Series()) == 'completed']),
+            'document_type_pending': len(self.df[self.df.get('document_type_status', pd.Series()) == 'pending']),
+            'document_type_error': len(self.df[self.df.get('document_type_status', pd.Series()) == 'error']),
             'dublin_core_fields': {}
         }
         

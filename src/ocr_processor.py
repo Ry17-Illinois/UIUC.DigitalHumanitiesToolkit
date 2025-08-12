@@ -23,6 +23,12 @@ except ImportError:
     PyPDF2 = None
 
 try:
+    import fitz  # PyMuPDF
+    PYMUPDF_AVAILABLE = True
+except ImportError:
+    PYMUPDF_AVAILABLE = False
+
+try:
     from openai import OpenAI
     import base64
     import io
@@ -163,6 +169,89 @@ class PyPDF2OCRModel(BaseOCRModel):
     def name(self) -> str:
         return "pypdf2"
 
+class PyMuPDFOCRModel(BaseOCRModel):
+    """PyMuPDF text extraction and OCR implementation"""
+    
+    def __init__(self):
+        if not PYMUPDF_AVAILABLE:
+            raise ImportError("PyMuPDF not available")
+    
+    def process_image(self, image: Image.Image) -> str:
+        """Convert image to temporary PDF and extract text"""
+        import tempfile
+        import os
+        
+        try:
+            # Create temporary PDF from image
+            with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp_pdf:
+                temp_pdf_path = temp_pdf.name
+                
+            # Convert image to PDF
+            image.save(temp_pdf_path, "PDF", resolution=100.0)
+            
+            # Extract text from temporary PDF
+            result = self.process_pdf(temp_pdf_path)
+            
+            # Clean up temporary file
+            os.unlink(temp_pdf_path)
+            
+            return result if result != "No text found in PDF" else "No embedded text found in image (image-based content)"
+            
+        except Exception as e:
+            return f"Error converting image to PDF: {str(e)}"
+    
+    def process_pdf(self, pdf_path: str) -> str:
+        """Extract text from PDF using PyMuPDF"""
+        try:
+            doc = fitz.open(pdf_path)
+            text_parts = []
+            
+            for page_num in range(len(doc)):
+                page = doc.load_page(page_num)
+                page_text = page.get_text()
+                
+                if page_text.strip():
+                    text_parts.append(f"[Page {page_num + 1}]\n{page_text}")
+                else:
+                    # If no text found, try OCR on page image using PyMuPDF's built-in capabilities
+                    try:
+                        # Get page as image
+                        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2x zoom for better OCR
+                        img_data = pix.tobytes("png")
+                        
+                        # Convert to PIL Image
+                        from io import BytesIO
+                        img = Image.open(BytesIO(img_data))
+                        
+                        # Try EasyOCR if available
+                        try:
+                            import easyocr
+                            import numpy as np
+                            reader = easyocr.Reader(['en'], gpu=False)  # Use CPU to avoid GPU issues
+                            img_array = np.array(img)
+                            ocr_results = reader.readtext(img_array)
+                            ocr_text = '\n'.join([result[1] for result in ocr_results if result[2] > 0.5])  # Confidence threshold
+                            if ocr_text.strip():
+                                text_parts.append(f"[Page {page_num + 1} - OCR]\n{ocr_text}")
+                            else:
+                                text_parts.append(f"[Page {page_num + 1}]\n[Image-based content - low confidence OCR]")
+                        except ImportError:
+                            text_parts.append(f"[Page {page_num + 1}]\n[Image-based content - EasyOCR not available]")
+                        except Exception as ocr_error:
+                            text_parts.append(f"[Page {page_num + 1}]\n[Image-based content - OCR failed: {str(ocr_error)}]")
+                    except Exception as img_error:
+                        text_parts.append(f"[Page {page_num + 1}]\n[Image extraction failed: {str(img_error)}]")
+            
+            doc.close()
+            return "\n\n".join(text_parts) if text_parts else "No text found in PDF"
+            
+        except Exception as e:
+            return f"Error processing PDF with PyMuPDF: {str(e)}"
+    
+    @property
+    def name(self) -> str:
+        return "pymupdf"
+
 class OllamaOCRModel(BaseOCRModel):
     """Ollama local LLM image transcription implementation"""
     
@@ -183,22 +272,68 @@ class OllamaOCRModel(BaseOCRModel):
     
     def process_image(self, image: Image.Image) -> str:
         """Process image with Ollama local LLM"""
+        import time
+        import threading
+        
         try:
+            print(f"🔄 Starting Ollama OCR with model {self.model_name}...")
+            
             # Convert image to bytes
             buffered = io.BytesIO()
             image.save(buffered, format="JPEG")
             img_bytes = buffered.getvalue()
+            print(f"📷 Image size: {len(img_bytes)} bytes")
             
-            # Send to Ollama
-            response = ollama.generate(
-                model=self.model_name,
-                prompt="Transcribe all text from this image. Only return the text content, no additional commentary.",
-                images=[img_bytes]
-            )
+            start_time = time.time()
+            print(f"⏱️ Sending request to Ollama at {time.strftime('%H:%M:%S')}")
             
-            return response['response']
+            # Check if this is a timeout situation from PDF processing
+            if hasattr(threading.current_thread(), '_timeout_applied'):
+                print("⚠️ Already in timeout context, using shorter timeout")
+                timeout_duration = 30
+            else:
+                timeout_duration = 90
+            
+            # Use threading with timeout
+            result = [None]
+            error = [None]
+            
+            def ollama_request():
+                try:
+                    response = ollama.generate(
+                        model=self.model_name,
+                        prompt="Transcribe all text from this image. Only return the text content, no additional commentary.",
+                        images=[img_bytes],
+                        options={
+                            'temperature': 0.1,
+                            'top_p': 0.9,
+                            'num_predict': 1000
+                        }
+                    )
+                    result[0] = response['response']
+                except Exception as e:
+                    error[0] = str(e)
+            
+            thread = threading.Thread(target=ollama_request)
+            thread.daemon = True
+            thread.start()
+            thread.join(timeout=timeout_duration)  # Dynamic timeout
+            
+            if thread.is_alive():
+                print("⏰ Ollama request timed out after 90 seconds")
+                return "Error: Ollama request timed out - model may be overloaded or stuck"
+            
+            if error[0]:
+                print(f"❌ Ollama error: {error[0]}")
+                return f"Error: {error[0]}"
+            
+            elapsed = time.time() - start_time
+            print(f"✅ Ollama response received in {elapsed:.2f}s")
+            
+            return result[0] or "No response from Ollama"
             
         except Exception as e:
+            print(f"❌ Ollama error: {str(e)}")
             return f"Error: {str(e)}"
     
     @property
@@ -280,6 +415,13 @@ class OCRProcessor:
             self.models['pypdf2'] = PyPDF2OCRModel()
             if not self.default_model:
                 self.default_model = 'pypdf2'
+        except Exception:
+            pass
+        
+        try:
+            self.models['pymupdf'] = PyMuPDFOCRModel()
+            if not self.default_model:
+                self.default_model = 'pymupdf'
         except Exception:
             pass
     
@@ -369,7 +511,7 @@ class OCRProcessor:
             return f"Error: {error_msg}", "error"
     
     def process_pdf(self, pdf_path: str, model_name: str = None) -> Tuple[str, str]:
-        """Process PDF by converting to images and running OCR on each page"""
+        """Process PDF by converting pages to images and running OCR"""
         if model_name is None:
             model_name = self.default_model
         
@@ -377,23 +519,71 @@ class OCRProcessor:
             return f"Error: Unknown model {model_name}", "error"
         
         try:
-            # PyPDF2 extracts text directly without OCR
-            if model_name == 'pypdf2':
-                text = self.models[model_name].process_pdf(pdf_path)
+            # PyPDF2 and PyMuPDF handle PDFs directly
+            if model_name in ['pypdf2', 'pymupdf']:
+                if model_name == 'pypdf2':
+                    text = self.models[model_name].process_pdf(pdf_path)
+                else:
+                    text = self.models[model_name].process_pdf(pdf_path)
                 return text, "completed"
             
-            # Other models need image conversion
-            images = convert_from_path(pdf_path, dpi=200)
+            # For other OCR models, convert PDF pages to images using PyMuPDF
+            if not PYMUPDF_AVAILABLE:
+                return "Error: PyMuPDF required for PDF to image conversion. Install with: pip install PyMuPDF", "error"
+            
+            import fitz
+            doc = fitz.open(pdf_path)
             all_text = []
             
-            for i, image in enumerate(images):
-                print(f"Processing page {i+1}/{len(images)}")
+            for page_num in range(len(doc)):
+                print(f"Processing page {page_num + 1}/{len(doc)}")
+                
+                # Convert page to image
+                page = doc.load_page(page_num)
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2x zoom for better OCR
+                
+                # Convert to PIL Image
+                from io import BytesIO
+                img_data = pix.tobytes("png")
+                image = Image.open(BytesIO(img_data))
+                
+                # Preprocess and run OCR with timeout for Ollama
                 image = self.preprocess_image(image, model_name)
-                page_text = self.models[model_name].process_image(image)
-                all_text.append(f"[Page {i+1}]\n{page_text}")
+                
+                if model_name == 'ollama_ocr':
+                    # Apply timeout for Ollama OCR on PDF pages
+                    import threading
+                    import time
+                    
+                    result = [None]
+                    error = [None]
+                    
+                    def ocr_with_timeout():
+                        try:
+                            result[0] = self.models[model_name].process_image(image)
+                        except Exception as e:
+                            error[0] = str(e)
+                    
+                    thread = threading.Thread(target=ocr_with_timeout)
+                    thread.daemon = True
+                    thread.start()
+                    thread.join(timeout=90)  # 90 second timeout
+                    
+                    if thread.is_alive():
+                        page_text = f"Error: Ollama OCR timed out on page {page_num + 1}"
+                    elif error[0]:
+                        page_text = f"Error: {error[0]}"
+                    else:
+                        page_text = result[0] or "No response from Ollama"
+                else:
+                    page_text = self.models[model_name].process_image(image)
+                
+                all_text.append(f"[Page {page_num + 1}]\n{page_text}")
             
+            doc.close()
             combined_text = "\n\n".join(all_text)
             return combined_text, "completed"
+            
         except Exception as e:
             return f"Error: {str(e)}", "error"
     
@@ -413,6 +603,10 @@ class OCRProcessor:
             else:
                 return self.process_image(file_path, model_name)
         elif file_ext == '.pdf':
-            return self.process_pdf(file_path, model_name)
+            # Use PyMuPDF for PDF processing if available
+            if model_name == 'pymupdf' and 'pymupdf' in self.models:
+                return self.models['pymupdf'].process_pdf(file_path), "completed"
+            else:
+                return self.process_pdf(file_path, model_name)
         else:
             return f"Unsupported file type: {file_ext}", "error"
