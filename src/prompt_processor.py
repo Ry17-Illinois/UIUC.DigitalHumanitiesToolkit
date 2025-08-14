@@ -68,9 +68,18 @@ class PromptProcessor:
     
     def _generate_openai(self, prompt: str) -> str:
         """Generate using OpenAI"""
-        system_prompt = """You are a metadata extraction expert. Extract ONLY the requested metadata values from the document text. 
+        # Check if this is an entity analysis prompt (contains "DOCUMENTARY EVIDENCE")
+        if "DOCUMENTARY EVIDENCE" in prompt:
+            system_prompt = """You are a historical research expert. Analyze the provided historical entity based on the OCR text evidence. Write detailed, informative paragraphs for each requested section. Be thorough and reference the document evidence provided."""
+            max_tokens = 800
+            temperature = 0.7
+        else:
+            # Original metadata extraction prompt
+            system_prompt = """You are a metadata extraction expert. Extract ONLY the requested metadata values from the document text. 
 Respond with exactly 3 options, one per line, with no commentary, explanations, or numbering. 
 Just the clean metadata values."""
+            max_tokens = 200
+            temperature = 0.3
         
         response = self.client.chat.completions.create(
             model="gpt-4o-mini",
@@ -78,18 +87,23 @@ Just the clean metadata values."""
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=200,
-            temperature=0.3
+            max_tokens=max_tokens,
+            temperature=temperature
         )
         return response.choices[0].message.content
     
     def _generate_ollama(self, prompt: str) -> str:
         """Generate using Ollama"""
-        system_prompt = """You are a metadata extraction expert. Extract ONLY the requested metadata values from the document text. 
+        # Check if this is an entity analysis prompt
+        if "DOCUMENTARY EVIDENCE" in prompt:
+            system_prompt = """You are a historical research expert. Analyze the provided historical entity based on the OCR text evidence. Write detailed, informative paragraphs for each requested section. Be thorough and reference the document evidence provided."""
+            full_prompt = f"{system_prompt}\n\n{prompt}"
+        else:
+            # Original metadata extraction prompt
+            system_prompt = """You are a metadata extraction expert. Extract ONLY the requested metadata values from the document text. 
 Respond with exactly 3 options, one per line, with no commentary, explanations, or numbering. 
 Just the clean metadata values."""
-        
-        full_prompt = f"{system_prompt}\n\n{prompt}\n\nProvide exactly 3 clean metadata values, one per line:"
+            full_prompt = f"{system_prompt}\n\n{prompt}\n\nProvide exactly 3 clean metadata values, one per line:"
         
         response = ollama.generate(
             model=self.ollama_model,

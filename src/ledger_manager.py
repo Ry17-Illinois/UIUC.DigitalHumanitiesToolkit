@@ -7,6 +7,7 @@ Handles the creation and management of the metadata ledger
 import pandas as pd
 import os
 import uuid
+import threading
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
@@ -22,6 +23,7 @@ class LedgerManager:
     
     def __init__(self, ledger_path: str = "metadata_ledger.csv"):
         self.ledger_path = ledger_path
+        self._lock = threading.Lock()
         self.df = self.load_or_create_ledger()
     
     def load_or_create_ledger(self) -> pd.DataFrame:
@@ -65,19 +67,27 @@ class LedgerManager:
         return df
     
     def save_ledger(self):
-        """Save the ledger to CSV"""
-        self.df.to_csv(self.ledger_path, index=False)
+        """Save the ledger to CSV with thread safety"""
+        with self._lock:
+            print(f"DEBUG: Saving ledger with {len(self.df)} rows to {self.ledger_path}")
+            self.df.to_csv(self.ledger_path, index=False)
+            print(f"DEBUG: Ledger saved successfully")
     
     def add_files(self, file_paths: List[str]) -> int:
         """Add new files to the ledger"""
+        print(f"DEBUG: add_files called with {len(file_paths)} paths")
         added_count = 0
+        new_files = []
         
-        for file_path in file_paths:
+        for i, file_path in enumerate(file_paths):
+            print(f"DEBUG: Processing file {i+1}/{len(file_paths)}: {file_path}")
             if not os.path.exists(file_path):
+                print(f"DEBUG: File does not exist, skipping")
                 continue
                 
             # Check if file already exists
             if not self.df[self.df['filepath'] == file_path].empty:
+                print(f"DEBUG: File already in ledger, skipping")
                 continue
             
             file_type = Path(file_path).suffix.lower()
@@ -109,11 +119,19 @@ class LedgerManager:
                 file_info[field] = ''
                 file_info[f"{field}_status"] = 'pending'
             
-            # Add to dataframe
-            self.df = pd.concat([self.df, pd.DataFrame([file_info])], ignore_index=True)
+            new_files.append(file_info)
             added_count += 1
+            print(f"DEBUG: Added file to batch, total so far: {added_count}")
         
-        self.save_ledger()
+        # Add all files at once
+        if new_files:
+            print(f"DEBUG: Adding {len(new_files)} files to dataframe")
+            self.df = pd.concat([self.df, pd.DataFrame(new_files)], ignore_index=True)
+            print(f"DEBUG: Dataframe now has {len(self.df)} rows")
+            self.save_ledger()
+        else:
+            print(f"DEBUG: No new files to add")
+        
         return added_count
     
     def update_ocr_result(self, file_id: str, ocr_text: str, status: str = 'completed', model: str = 'easyocr'):
@@ -160,12 +178,48 @@ class LedgerManager:
         self.df = self.df[~self.df['file_id'].isin(file_ids)]
         self.save_ledger()
     
+    def get_file_id_by_path(self, filepath: str) -> str:
+        """Get file ID by filepath"""
+        matching_rows = self.df[self.df['filepath'] == filepath]
+        if not matching_rows.empty:
+            return matching_rows.iloc[0]['file_id']
+        return None
+    
+    def get_page_count(self, filepath: str) -> int:
+        """Get page count for a file (PDF pages or 1 for images)"""
+        try:
+            file_ext = Path(filepath).suffix.lower()
+            if file_ext == '.pdf':
+                try:
+                    import fitz  # PyMuPDF
+                    doc = fitz.open(filepath)
+                    page_count = len(doc)
+                    doc.close()
+                    return page_count
+                except ImportError:
+                    return 1  # Fallback if PyMuPDF not available
+                except Exception:
+                    return 1  # Fallback if PDF can't be opened
+            else:
+                return 1  # Images count as 1 page
+        except Exception:
+            return 1  # Fallback
+    
     def get_summary(self) -> Dict[str, Any]:
-        """Get summary statistics of the ledger"""
+        """Get summary statistics of the ledger with page counts"""
         total_files = len(self.df)
+        
+        # Calculate total pages with error handling
+        total_pages = 0
+        for _, row in self.df.iterrows():
+            try:
+                total_pages += self.get_page_count(row['filepath'])
+            except Exception:
+                total_pages += 1  # Fallback to 1 page if error
         
         summary = {
             'total_files': total_files,
+            'total_pages': total_pages,
             'easyocr_completed': len(self.df[self.df['easyocr_status'] == 'completed']),
             'easyocr_pending': len(self.df[self.df['easyocr_status'] == 'pending']),
             'easyocr_error': len(self.df[self.df['easyocr_status'] == 'error']),

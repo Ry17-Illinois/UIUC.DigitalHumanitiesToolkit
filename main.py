@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CODEBOOKS - Simplified Digital Humanities Metadata Pipeline
+ARCHIVE ANALYZER - AI-Powered Archival Document Analysis
 Main application with GUI interface
 """
 
@@ -33,7 +33,7 @@ except ImportError:
 class CodebooksApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("CODEBOOKS - Digital Humanities Metadata Pipeline")
+        self.root.title("ARCHIVE ANALYZER - AI-Powered Archival Document Analysis")
         
         # Initialize configuration
         self.config = ConfigManager()
@@ -62,6 +62,8 @@ class CodebooksApp:
         self.load_ai_configurations()
         
         self.refresh_display()
+        # Force update analysis display
+        self.update_analysis_display()
         
         # Save config on close
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -82,7 +84,7 @@ class CodebooksApp:
         title_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
         title_frame.columnconfigure(1, weight=1)
         
-        ttk.Label(title_frame, text="CODEBOOKS", font=("Arial", 18, "bold")).grid(row=0, column=0, sticky=tk.W)
+        ttk.Label(title_frame, text="ARCHIVE ANALYZER", font=("Arial", 18, "bold")).grid(row=0, column=0, sticky=tk.W)
         
         # Progress bar and stop button
         progress_frame = ttk.Frame(title_frame)
@@ -122,69 +124,72 @@ class CodebooksApp:
         self.config_status = tk.StringVar(value="Configuration: Not set")
         ttk.Label(control_frame, textvariable=self.config_status, font=("Arial", 9), foreground="gray").grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=(2, 0))
         
-        # STEP 3: PROCESSING OPERATIONS
-        ttk.Label(control_frame, text="3️⃣ PROCESSING OPERATIONS", font=("Arial", 11, "bold")).grid(row=5, column=0, columnspan=2, sticky=tk.W, pady=(15, 5))
+        # STEP 3: PROCESSING
+        ttk.Label(control_frame, text="3️⃣ PROCESSING", font=("Arial", 11, "bold")).grid(row=5, column=0, columnspan=2, sticky=tk.W, pady=(15, 5))
         
-        # OCR Processing
-        ocr_frame = ttk.LabelFrame(control_frame, text="OCR Processing")
-        ocr_frame.grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
-        ocr_frame.columnconfigure(0, weight=1)
-        ocr_frame.columnconfigure(1, weight=1)
+        process_frame = ttk.Frame(control_frame)
+        process_frame.grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
+        process_frame.columnconfigure(0, weight=1)
+        process_frame.columnconfigure(1, weight=1)
         
-        ttk.Button(ocr_frame, text="🔍 Run All OCR", command=self.run_all_available_ocr).grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(5, 2), pady=5)
-        ttk.Button(ocr_frame, text="📊 Evaluate & Set Ground Truth", command=self.evaluate_ocr).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(2, 5), pady=5)
-        ttk.Button(ocr_frame, text="⚡ Batch Process N Files", command=self.batch_process_files).grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), padx=5, pady=5)
+        ttk.Button(process_frame, text="⚡ Batch Process N Files", command=self.batch_process_files).grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 2))
+        ttk.Button(process_frame, text="🔍 Process All Files", command=self.process_all_files).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(2, 0))
+        
+        # STEP 4: GROUND TRUTH
+        ttk.Label(control_frame, text="4️⃣ GROUND TRUTH", font=("Arial", 11, "bold")).grid(row=7, column=0, columnspan=2, sticky=tk.W, pady=(15, 5))
+        
+        gt_frame = ttk.Frame(control_frame)
+        gt_frame.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
+        gt_frame.columnconfigure(0, weight=1)
+        
+        ttk.Button(gt_frame, text="📊 Evaluate & Set Ground Truth", command=self.evaluate_ocr).grid(row=0, column=0, sticky=(tk.W, tk.E))
         
         # Ground truth status
         self.ground_truth_status = tk.StringVar(value="Ground Truth: Not set")
-        ttk.Label(control_frame, textvariable=self.ground_truth_status, font=("Arial", 9), foreground="gray").grid(row=7, column=0, columnspan=2, sticky=tk.W, pady=(2, 0))
+        ttk.Label(control_frame, textvariable=self.ground_truth_status, font=("Arial", 9), foreground="gray").grid(row=9, column=0, columnspan=2, sticky=tk.W, pady=(2, 0))
         
-        # AI Processing
-        ai_processing_frame = ttk.LabelFrame(control_frame, text="AI Processing (Requires Ground Truth)")
-        ai_processing_frame.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
-        ai_processing_frame.columnconfigure(0, weight=1)
-        ai_processing_frame.columnconfigure(1, weight=1)
-        ai_processing_frame.columnconfigure(2, weight=1)
+        # STEP 5: CONTENT ANALYSIS (Requires Ground Truth)
+        ttk.Label(control_frame, text="5️⃣ CONTENT ANALYSIS (Requires Ground Truth)", font=("Arial", 11, "bold")).grid(row=10, column=0, columnspan=2, sticky=tk.W, pady=(15, 5))
         
-        ttk.Button(ai_processing_frame, text="📄 Classify Documents", command=self.classify_document_types).grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(5, 2), pady=5)
-        ttk.Button(ai_processing_frame, text="📝 Generate Metadata", command=self.generate_metadata).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(2, 2), pady=5)
-        ttk.Button(ai_processing_frame, text="🏷️ Extract Entities", command=self.extract_named_entities).grid(row=0, column=2, sticky=(tk.W, tk.E), padx=(2, 5), pady=5)
-        
-        # Topic Modeling
-        topic_frame = ttk.LabelFrame(control_frame, text="Topic Analysis")
-        topic_frame.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
-        topic_frame.columnconfigure(0, weight=1)
-        
-        ttk.Button(topic_frame, text="📊 Discover Topics", command=lambda: self.notebook.select(3)).grid(row=0, column=0, sticky=(tk.W, tk.E), padx=5, pady=5)
-        
-        # STEP 5: ANALYSIS TOOLS
-        ttk.Label(control_frame, text="5️⃣ ANALYSIS TOOLS", font=("Arial", 11, "bold")).grid(row=9, column=0, columnspan=2, sticky=tk.W, pady=(15, 5))
-        
-        # Analysis tools in a single frame
         analysis_frame = ttk.Frame(control_frame)
-        analysis_frame.grid(row=10, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
+        analysis_frame.grid(row=11, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
         analysis_frame.columnconfigure(0, weight=1)
         analysis_frame.columnconfigure(1, weight=1)
         analysis_frame.columnconfigure(2, weight=1)
         
-        ttk.Button(analysis_frame, text="📅 Timeline", command=lambda: self.notebook.select(4)).grid(row=0, column=0, sticky=(tk.W, tk.E), padx=2, pady=2)
-        ttk.Button(analysis_frame, text="🌍 Geography", command=lambda: self.notebook.select(5)).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=2, pady=2)
-        ttk.Button(analysis_frame, text="📊 Topics", command=lambda: self.notebook.select(3)).grid(row=0, column=2, sticky=(tk.W, tk.E), padx=2, pady=2)
+        ttk.Button(analysis_frame, text="📝 Generate Metadata", command=self.generate_metadata).grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 1))
+        ttk.Button(analysis_frame, text="🏷️ Extract Entities", command=self.extract_named_entities).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(1, 1))
+        ttk.Button(analysis_frame, text="🔗 Analyze Relationships", command=self.analyze_document_relationships).grid(row=0, column=2, sticky=(tk.W, tk.E), padx=(1, 0))
         
-        # STEP 4: DATA MANAGEMENT
-        ttk.Label(control_frame, text="4️⃣ DATA MANAGEMENT", font=("Arial", 11, "bold")).grid(row=11, column=0, columnspan=2, sticky=tk.W, pady=(15, 5))
+        # STEP 6: ADVANCED ANALYSIS
+        ttk.Label(control_frame, text="6️⃣ ADVANCED ANALYSIS", font=("Arial", 11, "bold")).grid(row=12, column=0, columnspan=2, sticky=tk.W, pady=(15, 5))
+        
+        advanced_frame = ttk.Frame(control_frame)
+        advanced_frame.grid(row=13, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
+        advanced_frame.columnconfigure(0, weight=1)
+        advanced_frame.columnconfigure(1, weight=1)
+        advanced_frame.columnconfigure(2, weight=1)
+        
+        ttk.Button(advanced_frame, text="📊 Topics", command=lambda: self.notebook.select(3)).grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 1))
+        ttk.Button(advanced_frame, text="📅 Timeline", command=lambda: self.notebook.select(4)).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(1, 1))
+        ttk.Button(advanced_frame, text="🌍 Geography", command=lambda: self.notebook.select(5)).grid(row=0, column=2, sticky=(tk.W, tk.E), padx=(1, 0))
+        
+        # STEP 7: DATA MANAGEMENT
+        ttk.Label(control_frame, text="7️⃣ DATA MANAGEMENT", font=("Arial", 11, "bold")).grid(row=14, column=0, columnspan=2, sticky=tk.W, pady=(15, 5))
         
         data_frame = ttk.Frame(control_frame)
-        data_frame.grid(row=12, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
+        data_frame.grid(row=15, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
         data_frame.columnconfigure(0, weight=1)
         data_frame.columnconfigure(1, weight=1)
         data_frame.columnconfigure(2, weight=1)
-        
         data_frame.columnconfigure(2, weight=1)
         
-        ttk.Button(data_frame, text="💾 Export Results", command=self.export_results).grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 2))
-        ttk.Button(data_frame, text="🔄 Refresh", command=self.refresh_display).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(2, 2))
-        ttk.Button(data_frame, text="🗑️ Clear Selected", command=self.clear_rows).grid(row=0, column=2, sticky=(tk.W, tk.E), padx=(2, 0))
+        ttk.Button(data_frame, text="💾 Export Results", command=self.export_results).grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 1))
+        ttk.Button(data_frame, text="📋 Import CSV", command=self.import_csv_with_paths).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(1, 1))
+        ttk.Button(data_frame, text="📂 Expand All", command=lambda: self.expand_collapse_tree(self.tree, True)).grid(row=0, column=2, sticky=(tk.W, tk.E), padx=(1, 1))
+        ttk.Button(data_frame, text="📁 Collapse All", command=lambda: self.expand_collapse_tree(self.tree, False)).grid(row=0, column=3, sticky=(tk.W, tk.E), padx=(1, 1))
+        ttk.Button(data_frame, text="🔄 Refresh", command=self.refresh_display).grid(row=0, column=4, sticky=(tk.W, tk.E), padx=(1, 1))
+        ttk.Button(data_frame, text="🗑️ Clear Selected", command=self.clear_rows).grid(row=0, column=5, sticky=(tk.W, tk.E), padx=(1, 0))
         
         # Create main paned window for resizable layout
         main_paned = ttk.PanedWindow(main_container, orient=tk.HORIZONTAL)
@@ -205,28 +210,26 @@ class CodebooksApp:
         tree_frame.columnconfigure(0, weight=1)
         tree_frame.rowconfigure(0, weight=1)
         
-        # Treeview for data display
-        columns = ['filename', 'status', 'ocr_preview', 'title', 'creator', 'subject', 'document_type', 'named_entities']
-        self.tree = ttk.Treeview(tree_frame, columns=columns, show='headings', height=20)
+        # Treeview for data display with tree structure
+        columns = ['filename', 'status', 'document_type', 'ocr_preview', 'named_entities', 'filepath']
+        self.tree = ttk.Treeview(tree_frame, columns=columns, show='tree headings', height=20)
         
         # Configure columns
+        self.tree.heading('#0', text='Archive Structure')
         self.tree.heading('filename', text='File')
         self.tree.heading('status', text='Status')
-        self.tree.heading('ocr_preview', text='OCR Preview')
-        self.tree.heading('title', text='Title')
-        self.tree.heading('creator', text='Creator')
-        self.tree.heading('subject', text='Subject')
         self.tree.heading('document_type', text='Doc Type')
-        self.tree.heading('named_entities', text='Named Entities')
+        self.tree.heading('ocr_preview', text='OCR Preview')
+        self.tree.heading('named_entities', text='NER')
+        self.tree.heading('filepath', text='File Path')
         
+        self.tree.column('#0', width=250)
         self.tree.column('filename', width=200)
         self.tree.column('status', width=100)
-        self.tree.column('ocr_preview', width=300)
-        self.tree.column('title', width=150)
-        self.tree.column('creator', width=150)
-        self.tree.column('subject', width=150)
         self.tree.column('document_type', width=100)
+        self.tree.column('ocr_preview', width=300)
         self.tree.column('named_entities', width=200)
+        self.tree.column('filepath', width=400)
         
         self.tree.bind('<Double-1>', self.on_tree_double_click)
         self.tree.bind('<Button-3>', self.on_tree_right_click)  # Right-click context menu
@@ -1116,7 +1119,42 @@ class CodebooksApp:
         ttk.Button(button_frame, text="💾 Save Configuration", command=save_config).pack(side=tk.RIGHT, padx=5)
         ttk.Button(button_frame, text="❌ Cancel", command=dialog.destroy).pack(side=tk.RIGHT, padx=5)
     
-    def run_all_available_ocr(self):
+    def process_all_files(self):
+        """Process all files with classification and OCR"""
+        # Use batch processing with all files
+        config = {
+            'num_files': len(self.ledger.df),
+            'ocr_engines': self.get_enabled_ocr_engines(),
+            'include_ner': False,
+            'ner_method': 'spacy'
+        }
+        
+        if not config['ocr_engines']:
+            messagebox.showwarning("No OCR Engines", "No OCR engines are enabled. Please configure them first.")
+            return
+        
+        self.run_batch_processing(config)
+    
+    def get_enabled_ocr_engines(self):
+        """Get list of enabled OCR engines"""
+        ocr_config = self.config.get_section('ocr_engines')
+        enabled_engines = []
+        
+        engine_map = {
+            'easyocr_enabled': 'easyocr',
+            'tesseract_enabled': 'tesseract', 
+            'pypdf2_enabled': 'pypdf2',
+            'openai_ocr_enabled': 'openai_ocr',
+            'ollama_ocr_enabled': 'ollama_ocr'
+        }
+        
+        for config_key, engine_name in engine_map.items():
+            if ocr_config.get(config_key, True) and engine_name in self.ocr.models:
+                enabled_engines.append(engine_name)
+        
+        return enabled_engines
+    
+    def run_all_available_ocr_old(self):
         """Run all enabled OCR engines"""
         ocr_config = self.config.get_section('ocr_engines')
         enabled_engines = [key.replace('_enabled', '') for key, enabled in ocr_config.items() if enabled]
@@ -1473,70 +1511,184 @@ class CodebooksApp:
                 file_ids.extend(matching_rows['file_id'].tolist())
         
         self.ledger.clear_rows(file_ids)
-        messagebox.showinfo("Deleted", f"Deleted {len(file_ids)} rows")
+        messagebox.showinfo("Deleted", f"Deleted {len(selected_items)} rows ({len(file_ids)} file records)")
         self.refresh_display()
     
+    def parse_archival_path(self, filepath):
+        """Parse filepath to extract archival structure"""
+        path_parts = filepath.replace('\\', '/').split('/')
+        
+        # Look for common archival patterns
+        collection = "Unknown Collection"
+        box = "Unknown Box"
+        folder = "Unknown Folder"
+        
+        for i, part in enumerate(path_parts):
+            part_lower = part.lower()
+            if 'collection' in part_lower or len(path_parts) - i > 3:
+                collection = part
+            elif 'box' in part_lower:
+                box = part
+            elif 'folder' in part_lower or (i == len(path_parts) - 2):
+                folder = part
+        
+        return collection, box, folder
+    
     def refresh_display(self):
-        """Refresh the data display"""
+        """Refresh the data display with archival grouping"""
         # Clear existing items
         for item in self.tree.get_children():
             self.tree.delete(item)
         
-        # Add current data with simplified view
+        # Group files by archival structure
+        groups = {}
         for _, row in self.ledger.df.iterrows():
-            # Determine overall status with color coding
-            statuses = [
-                row.get('easyocr_status', 'pending'),
-                row.get('tesseract_status', 'pending'),
-                row.get('pypdf2_status', 'pending'),
-                row.get('openai_ocr_status', 'pending'),
-                row.get('ollama_ocr_status', 'pending')
-            ]
+            collection, box, folder = self.parse_archival_path(row['filepath'])
+            group_key = f"{collection} > {box} > {folder}"
             
-            completed = sum(1 for s in statuses if s == 'completed')
-            errors = sum(1 for s in statuses if s == 'error')
+            if group_key not in groups:
+                groups[group_key] = []
+            groups[group_key].append(row)
+        
+        # Add grouped data to tree
+        for group_key, files in groups.items():
+            # Calculate group statistics
+            total_files = len(files)
+            completed_files = sum(1 for f in files if self.get_file_status(f) == "🟢 Complete")
+            total_pages = sum(self.ledger.get_page_count(f['filepath']) for f in files)
+            completed_pages = sum(self.ledger.get_page_count(f['filepath']) for f in files if f.get('openai_ocr_status') == 'completed')
             
-            if errors > 0:
-                status_display = f"🔴 {completed}/5 ({errors} errors)"
-            elif completed == 5:
-                status_display = "🟢 Complete"
-            elif completed > 0:
-                status_display = f"🟡 {completed}/5"
-            else:
-                status_display = "⚪ Pending"
+            # Insert group header with proper text in first column
+            group_item = self.tree.insert('', 'end', 
+                text=f"📁 {group_key}",
+                values=[f"({total_files} files, {total_pages} pages, {completed_pages} pages complete)", '', '', '', '', '', '', ''],
+                tags=('group',),
+                open=True)  # Start expanded
             
-            # Get OCR text for preview from ground truth engine if set
-            if self.ground_truth_engine:
-                if self.ground_truth_engine == 'openai_ocr':
-                    preview_text = str(row.get('openai_ocr_ocr', '') or '')
-                elif self.ground_truth_engine == 'ollama_ocr':
-                    preview_text = str(row.get('ollama_ocr_ocr', '') or '')
-                else:
-                    preview_text = str(row.get(f'{self.ground_truth_engine}_ocr', '') or '')
-            else:
-                # Fallback to best available OCR text
-                ocr_texts = [
-                    str(row.get('easyocr_ocr', '') or ''),
-                    str(row.get('tesseract_ocr', '') or ''),
-                    str(row.get('pypdf2_ocr', '') or ''),
-                    str(row.get('openai_ocr_ocr', '') or ''),
-                    str(row.get('ollama_ocr_ocr', '') or '')
+            # Insert files under group
+            for row in files:
+                status_display = self.get_file_status(row)
+                preview = self.get_file_preview(row)
+                
+                values = [
+                    row['filename'],
+                    status_display,
+                    row.get('document_type', ''),
+                    preview,
+                    row.get('named_entities', ''),
+                    row['filepath']
                 ]
-                preview_text = max(ocr_texts, key=len) if any(ocr_texts) else ""
-            
-            preview = preview_text[:50] + '...' if len(preview_text) > 50 else preview_text
-            
-            values = [
-                row['filename'],
-                status_display,
-                preview,
-                row.get('title', ''),
-                row.get('creator', ''),
-                row.get('subject', ''),
-                row.get('document_type', ''),
-                row.get('named_entities', '')
+                self.tree.insert(group_item, 'end', text='', values=values, tags=('file',))
+        
+        # Configure styling
+        self.tree.tag_configure('group', background='#e8f4fd', font=('Arial', 9, 'bold'))
+        self.tree.tag_configure('file', background='white')
+        
+        # Update analysis tab
+        self.update_analysis_display()
+    
+    def get_file_status(self, row):
+        """Get status display for a file"""
+        statuses = [
+            row.get('easyocr_status', 'pending'),
+            row.get('tesseract_status', 'pending'),
+            row.get('pypdf2_status', 'pending'),
+            row.get('openai_ocr_status', 'pending'),
+            row.get('ollama_ocr_status', 'pending')
+        ]
+        
+        completed = sum(1 for s in statuses if s == 'completed')
+        errors = sum(1 for s in statuses if s == 'error')
+        
+        if errors > 0:
+            return f"🔴 {completed}/5 ({errors} errors)"
+        elif completed == 5:
+            return "🟢 Complete"
+        elif completed > 0:
+            return f"🟡 {completed}/5"
+        else:
+            return "⚪ Pending"
+    
+    def get_file_preview(self, row):
+        """Get OCR preview text for a file"""
+        if self.ground_truth_engine:
+            if self.ground_truth_engine == 'openai_ocr':
+                preview_text = str(row.get('openai_ocr_ocr', '') or '')
+            elif self.ground_truth_engine == 'ollama_ocr':
+                preview_text = str(row.get('ollama_ocr_ocr', '') or '')
+            else:
+                preview_text = str(row.get(f'{self.ground_truth_engine}_ocr', '') or '')
+        else:
+            # Fallback to best available OCR text
+            ocr_texts = [
+                str(row.get('easyocr_ocr', '') or ''),
+                str(row.get('tesseract_ocr', '') or ''),
+                str(row.get('pypdf2_ocr', '') or ''),
+                str(row.get('openai_ocr_ocr', '') or ''),
+                str(row.get('ollama_ocr_ocr', '') or '')
             ]
-            self.tree.insert('', 'end', values=values)
+            preview_text = max(ocr_texts, key=len) if any(ocr_texts) else ""
+        
+        return preview_text[:50] + '...' if len(preview_text) > 50 else preview_text
+    
+    def update_analysis_display(self):
+        """Update the analysis tab with current statistics"""
+        summary = self.ledger.get_summary()
+        analysis_text = f"""CODEBOOKS ANALYSIS REPORT
+{'='*50}
+
+📊 PROCESSING OVERVIEW:
+Total Files: {summary['total_files']}
+Total Pages: {summary['total_pages']} (PDF pages + images)
+
+🔍 OCR ENGINE PERFORMANCE:
+• EasyOCR:    ✅{summary['easyocr_completed']:3d} ⏳{summary['easyocr_pending']:3d} ❌{summary['easyocr_error']:3d}
+• Tesseract:  ✅{summary['tesseract_completed']:3d} ⏳{summary['tesseract_pending']:3d} ❌{summary['tesseract_error']:3d}
+• PyPDF2:     ✅{summary['pypdf2_completed']:3d} ⏳{summary['pypdf2_pending']:3d} ❌{summary['pypdf2_error']:3d}
+• OpenAI OCR: ✅{summary['openai_ocr_completed']:3d} ⏳{summary['openai_ocr_pending']:3d} ❌{summary['openai_ocr_error']:3d}
+• Ollama OCR: ✅{summary['ollama_ocr_completed']:3d} ⏳{summary['ollama_ocr_pending']:3d} ❌{summary['ollama_ocr_error']:3d}
+
+📄 DOCUMENT TYPE CLASSIFICATION:
+• Doc Types:  ✅{summary['document_type_completed']:3d} ⏳{summary['document_type_pending']:3d} ❌{summary['document_type_error']:3d}
+
+📝 METADATA FIELDS:"""
+        
+        for field in self.ledger.DUBLIN_CORE_FIELDS:
+            field_stats = summary['dublin_core_fields'][field]
+            analysis_text += f"\n• {field.title():12} ✅{field_stats['completed']:3d} ⏳{field_stats['pending']:3d} ❌{field_stats['error']:3d}"
+        
+        # Add document type breakdown if any are completed
+        if summary['document_type_completed'] > 0:
+            type_counts = self.ledger.df[self.ledger.df['document_type_status'] == 'completed']['document_type'].value_counts()
+            if not type_counts.empty:
+                analysis_text += "\n\n📊 DOCUMENT TYPE BREAKDOWN:\n"
+                for doc_type, count in type_counts.items():
+                    ocr_note = " (OCR skipped)" if doc_type == 'image' else ""
+                    analysis_text += f"• {doc_type.title():12} {count:3d} files{ocr_note}\n"
+        
+        analysis_text += "\n\n" + "="*50 + "\n\n"
+        if summary['total_files'] > 0:
+            # Calculate pages with OCR
+            pages_with_ocr = 0
+            for _, row in self.ledger.df.iterrows():
+                # Check if file has at least one completed OCR
+                has_ocr = any(row.get(f'{engine}_status') == 'completed' 
+                            for engine in ['easyocr', 'tesseract', 'pypdf2', 'openai_ocr', 'ollama_ocr'])
+                if has_ocr:
+                    pages_with_ocr += self.ledger.get_page_count(row['filepath'])
+            
+            ocr_percentage = (pages_with_ocr / summary['total_pages'] * 100) if summary['total_pages'] > 0 else 0
+            
+            analysis_text += "📏 SCALE INFORMATION:\n"
+            analysis_text += f"• Processing {summary['total_pages']} total pages across {summary['total_files']} files\n"
+            analysis_text += f"• Pages with OCR: {pages_with_ocr}/{summary['total_pages']} ({ocr_percentage:.1f}%)\n"
+            analysis_text += f"• Average pages per file: {summary['total_pages']/summary['total_files']:.1f}\n\n"
+        analysis_text += "⚠️ NOTE: Document classification is required before OCR processing.\n"
+        analysis_text += "Files classified as 'image' are excluded from OCR.\n\n"
+        analysis_text += "Double-click files to view detailed OCR results."
+        
+        self.analysis_text.delete(1.0, tk.END)
+        self.analysis_text.insert(1.0, analysis_text)
         
         # Update analysis tab
         summary = self.ledger.get_summary()
@@ -1545,6 +1697,7 @@ class CodebooksApp:
 
 📊 PROCESSING OVERVIEW:
 Total Files: {summary['total_files']}
+Total Pages: {summary['total_pages']} (PDF pages + images)
 
 🔍 OCR ENGINE PERFORMANCE:
 • EasyOCR:    ✅{summary['easyocr_completed']:3d} ⏳{summary['easyocr_pending']:3d} ❌{summary['easyocr_error']:3d}
@@ -1572,104 +1725,16 @@ Total Files: {summary['total_files']}
                     analysis_text += f"• {doc_type.title():12} {count:3d} files{ocr_note}\n"
         
         analysis_text += "\n\n" + "="*50 + "\n\n"
+        if summary['total_files'] > 0:
+            analysis_text += "📏 SCALE INFORMATION:\n"
+            analysis_text += f"• Processing {summary['total_pages']} total pages across {summary['total_files']} files\n"
+            analysis_text += f"• Average pages per file: {summary['total_pages']/summary['total_files']:.1f}\n\n"
         analysis_text += "⚠️ NOTE: Document classification is required before OCR processing.\n"
         analysis_text += "Files classified as 'image' are excluded from OCR.\n\n"
         analysis_text += "Double-click files to view detailed OCR results."
         
         self.analysis_text.delete(1.0, tk.END)
         self.analysis_text.insert(1.0, analysis_text)
-    
-    def on_tree_double_click(self, event):
-        """Handle double-click on tree item to show full OCR text with image preview"""
-        item = self.tree.selection()[0] if self.tree.selection() else None
-        if not item:
-            return
-        
-        values = self.tree.item(item)['values']
-        filename = values[0]
-        
-        # Find the full OCR text and file path
-        matching_rows = self.ledger.df[self.ledger.df['filename'] == filename]
-        if matching_rows.empty:
-            return
-        
-        row = matching_rows.iloc[0]
-        filepath = row.get('filepath', '')
-        easyocr_text = str(row.get('easyocr_ocr', '') or '')
-        tesseract_text = str(row.get('tesseract_ocr', '') or '')
-        pypdf2_text = str(row.get('pypdf2_ocr', '') or '')
-        openai_text = str(row.get('openai_ocr_ocr', '') or '')
-        ollama_text = str(row.get('ollama_ocr_ocr', '') or '')
-        
-        # Show full text in dialog with image preview
-        dialog = tk.Toplevel(self.root)
-        dialog.title(f"OCR Results - {filename}")
-        dialog.geometry("1200x700")
-        dialog.transient(self.root)
-        
-        # Main container with paned window
-        main_paned = ttk.PanedWindow(dialog, orient=tk.HORIZONTAL)
-        main_paned.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
-        # Left side - OCR text tabs
-        notebook = ttk.Notebook(main_paned)
-        
-        # Create OCR tabs
-        ocr_data = [
-            ("EasyOCR", easyocr_text, "easyocr"),
-            ("Tesseract", tesseract_text, "tesseract"), 
-            ("PyPDF2", pypdf2_text, "pypdf2"),
-            ("OpenAI OCR", openai_text, "openai_ocr"),
-            ("Ollama OCR", ollama_text, "ollama_ocr")
-        ]
-        
-        for tab_name, text_content, engine_key in ocr_data:
-            if text_content.strip():
-                frame = ttk.Frame(notebook)
-                notebook.add(frame, text=tab_name)
-                
-                # Add archive button at top of each tab
-                button_frame = ttk.Frame(frame)
-                button_frame.pack(fill=tk.X, pady=(0, 5))
-                
-                archive_btn = ttk.Button(button_frame, text=f"🗄️ Archive {tab_name}", 
-                                       command=lambda e=engine_key: self.archive_ocr_result(row['file_id'], e))
-                archive_btn.pack(side=tk.LEFT)
-                
-                # Text widget with scrollbar
-                text_widget_frame = ttk.Frame(frame)
-                text_widget_frame.pack(fill=tk.BOTH, expand=True)
-                
-                text_widget = tk.Text(text_widget_frame, wrap=tk.WORD, font=("Consolas", 9))
-                scrollbar = ttk.Scrollbar(text_widget_frame, orient=tk.VERTICAL, command=text_widget.yview)
-                text_widget.configure(yscrollcommand=scrollbar.set)
-                
-                text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-                scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-                
-                text_widget.insert(1.0, text_content)
-                text_widget.config(state=tk.DISABLED)
-        
-        main_paned.add(notebook, weight=1)
-        
-        # Right side - Document preview with open button
-        preview_frame = ttk.LabelFrame(main_paned, text="Document Preview", padding="10")
-        
-        # Add open externally button for PDFs
-        file_ext = os.path.splitext(filepath)[1].lower()
-        if file_ext == '.pdf':
-            button_frame = ttk.Frame(preview_frame)
-            button_frame.pack(fill=tk.X, pady=(0, 10))
-            ttk.Button(button_frame, text="📄 Open PDF Externally", 
-                      command=lambda: self.open_file_externally(filepath)).pack()
-        
-        self._create_document_preview(preview_frame, filepath)
-        main_paned.add(preview_frame, weight=1)
-        
-        # Close button
-        button_frame = ttk.Frame(dialog)
-        button_frame.pack(pady=5)
-        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack()
     
     def evaluate_ocr(self):
         """Evaluate OCR quality for selected files"""
@@ -2099,25 +2164,49 @@ Total Files: {summary['total_files']}
         engines = ['easyocr', 'tesseract', 'pypdf2', 'openai_ocr', 'ollama_ocr']
         similarity_matrix = np.zeros((5, 5))
         
-        # Calculate pairwise similarities
+        # Get actual OCR texts for similarity calculation
+        from difflib import SequenceMatcher
+        
+        # Collect all OCR texts by engine
+        engine_texts = {engine: [] for engine in engines}
+        
+        # Extract OCR texts from ledger data instead of evaluation results
+        for _, row in self.ledger.df.iterrows():
+            for engine in engines:
+                if engine == 'openai_ocr':
+                    text = str(row.get('openai_ocr_ocr', '') or '')
+                elif engine == 'ollama_ocr':
+                    text = str(row.get('ollama_ocr_ocr', '') or '')
+                else:
+                    text = str(row.get(f'{engine}_ocr', '') or '')
+                
+                if text and text != 'nan' and len(text.strip()) > 10:
+                    engine_texts[engine].append(text.strip())
+        
+        # Calculate pairwise text similarities
         for i, engine1 in enumerate(engines):
             for j, engine2 in enumerate(engines):
                 if i == j:
                     similarity_matrix[i][j] = 1.0
                 else:
                     similarities = []
-                    for filename, evaluation in all_results:
-                        if engine1 in evaluation and engine2 in evaluation:
-                            text1 = str(evaluation[engine1].get('text_length', 0))
-                            text2 = str(evaluation[engine2].get('text_length', 0))
-                            if evaluation[engine1]['text_length'] > 0 and evaluation[engine2]['text_length'] > 0:
-                                # Use quality score similarity as proxy
-                                score1 = evaluation[engine1]['quality_score']
-                                score2 = evaluation[engine2]['quality_score']
-                                similarities.append(1 - abs(score1 - score2))
+                    # Compare texts from same documents
+                    min_texts = min(len(engine_texts[engine1]), len(engine_texts[engine2]))
+                    
+                    for k in range(min_texts):
+                        if k < len(engine_texts[engine1]) and k < len(engine_texts[engine2]):
+                            text1 = engine_texts[engine1][k]
+                            text2 = engine_texts[engine2][k]
+                            
+                            if text1 and text2:
+                                # Calculate actual text similarity
+                                similarity = SequenceMatcher(None, text1.lower(), text2.lower()).ratio()
+                                similarities.append(similarity)
                     
                     if similarities:
                         similarity_matrix[i][j] = sum(similarities) / len(similarities)
+                    else:
+                        similarity_matrix[i][j] = 0.0
         
         fig, ax = plt.subplots(figsize=(8, 6))
         im = ax.imshow(similarity_matrix, cmap='RdYlBu', vmin=0, vmax=1)
@@ -2441,6 +2530,20 @@ Total Files: {summary['total_files']}
             ttk.Label(dialog, text="❌ No AI models configured", 
                      foreground="red").pack(pady=10)
             ttk.Button(dialog, text="Close", command=dialog.destroy).pack(pady=10)
+            return None
+        
+        def on_ok():
+            selected_model = model_var.get()
+            if selected_model:
+                dialog.destroy()
+            else:
+                messagebox.showwarning("No Selection", "Please select an AI model")
+        
+        ttk.Button(dialog, text="▶️ Start Classification", command=on_ok).pack(pady=20)
+        ttk.Button(dialog, text="❌ Cancel", command=dialog.destroy).pack(pady=5)
+        
+        dialog.wait_window()
+        return model_var.get() if model_var.get() else None
     
     def archive_ocr_result(self, file_id, engine):
         """Archive an OCR result to allow reprocessing"""
@@ -2616,20 +2719,65 @@ Total Files: {summary['total_files']}
     def setup_timeline_analysis(self, parent_frame):
         """Setup timeline analysis interface"""
         parent_frame.columnconfigure(0, weight=1)
-        parent_frame.rowconfigure(1, weight=1)
+        parent_frame.rowconfigure(2, weight=1)
+        
+        # Add explanation header
+        info_frame = ttk.LabelFrame(parent_frame, text="📅 Timeline Analysis Overview", padding="10")
+        info_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        info_text = tk.Text(info_frame, height=3, wrap=tk.WORD, bg='#f8f8f8', font=("Arial", 9))
+        info_text.pack(fill=tk.X)
+        info_text.insert(1.0, 
+            "Extract and visualize temporal patterns from your documents. Select files to analyze, choose OCR source, "
+            "then extract timeline events. View chronological events, generate timeline charts, and analyze document "
+            "frequency by decade. Double-click events to view source documents.")
+        info_text.config(state=tk.DISABLED)
         
         # Controls
         controls_frame = ttk.Frame(parent_frame)
         controls_frame.pack(fill=tk.X, padx=5, pady=5)
         
-        ttk.Label(controls_frame, text="OCR Source:").pack(side=tk.LEFT, padx=5)
+        # First row of controls
+        controls_row1 = ttk.Frame(controls_frame)
+        controls_row1.pack(fill=tk.X, pady=2)
+        
+        ttk.Label(controls_row1, text="OCR Source:").pack(side=tk.LEFT, padx=5)
         self.timeline_ocr_var = tk.StringVar(value=self.ground_truth_engine or "easyocr")
-        ocr_combo = ttk.Combobox(controls_frame, textvariable=self.timeline_ocr_var,
+        ocr_combo = ttk.Combobox(controls_row1, textvariable=self.timeline_ocr_var,
                                 values=["easyocr", "tesseract", "pypdf2", "openai_ocr", "ollama_ocr"], width=12)
         ocr_combo.pack(side=tk.LEFT, padx=5)
         
-        ttk.Button(controls_frame, text="📅 Extract Timeline", command=self.extract_timeline).pack(side=tk.LEFT, padx=10)
-        ttk.Button(controls_frame, text="💾 Export Timeline", command=self.export_timeline_data).pack(side=tk.LEFT, padx=5)
+        ttk.Button(controls_row1, text="📂 Select Files", command=self.select_timeline_files).pack(side=tk.LEFT, padx=10)
+        ttk.Button(controls_row1, text="📅 Extract Timeline", command=self.extract_timeline).pack(side=tk.LEFT, padx=5)
+        
+        # Second row of controls
+        controls_row2 = ttk.Frame(controls_frame)
+        controls_row2.pack(fill=tk.X, pady=2)
+        
+        ttk.Button(controls_row2, text="📊 Timeline Chart", command=self.show_timeline_chart).pack(side=tk.LEFT, padx=5)
+        ttk.Button(controls_row2, text="📈 Document Frequency", command=self.show_document_frequency).pack(side=tk.LEFT, padx=5)
+        ttk.Button(controls_row2, text="💾 Export Timeline", command=self.export_timeline_data).pack(side=tk.LEFT, padx=5)
+        
+        # Third row - Date range controls (initially hidden)
+        self.date_range_frame = ttk.Frame(controls_frame)
+        
+        ttk.Label(self.date_range_frame, text="Date Range:").pack(side=tk.LEFT, padx=5)
+        ttk.Label(self.date_range_frame, text="From:").pack(side=tk.LEFT, padx=(10,2))
+        self.start_year_var = tk.StringVar()
+        start_year_entry = ttk.Entry(self.date_range_frame, textvariable=self.start_year_var, width=8)
+        start_year_entry.pack(side=tk.LEFT, padx=2)
+        
+        ttk.Label(self.date_range_frame, text="To:").pack(side=tk.LEFT, padx=(10,2))
+        self.end_year_var = tk.StringVar()
+        end_year_entry = ttk.Entry(self.date_range_frame, textvariable=self.end_year_var, width=8)
+        end_year_entry.pack(side=tk.LEFT, padx=2)
+        
+        ttk.Button(self.date_range_frame, text="🔍 Filter", command=self.filter_timeline_by_date).pack(side=tk.LEFT, padx=10)
+        ttk.Button(self.date_range_frame, text="🔄 Reset", command=self.reset_timeline_filter).pack(side=tk.LEFT, padx=2)
+        
+        # File selection status
+        self.timeline_selection_var = tk.StringVar(value="All files selected")
+        ttk.Label(controls_frame, textvariable=self.timeline_selection_var, font=("Arial", 9), foreground="blue").pack(anchor=tk.W, padx=5, pady=2)
         
         # Main paned window
         paned = ttk.PanedWindow(parent_frame, orient=tk.HORIZONTAL)
@@ -2656,6 +2804,9 @@ Total Files: {summary['total_files']}
         self.timeline_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
         timeline_scroll.pack(side=tk.RIGHT, fill=tk.Y, pady=5)
         
+        # Bind double-click to open document viewer
+        self.timeline_tree.bind('<Double-1>', self.on_timeline_double_click)
+        
         # Statistics panel
         stats_frame = ttk.LabelFrame(paned, text="Timeline Statistics")
         self.timeline_stats_text = tk.Text(stats_frame, wrap=tk.WORD, font=("Consolas", 9), height=20)
@@ -2665,39 +2816,522 @@ Total Files: {summary['total_files']}
         self.timeline_stats_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
         stats_scroll.pack(side=tk.RIGHT, fill=tk.Y, pady=5)
         
-        paned.add(timeline_list_frame, weight=2)
+        # Add visualization frame
+        viz_frame = ttk.LabelFrame(paned, text="Timeline Visualization")
+        self.timeline_viz_frame = ttk.Frame(viz_frame)
+        self.timeline_viz_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        # Default message
+        ttk.Label(self.timeline_viz_frame, text="📊 Click visualization buttons to generate charts", 
+                 font=("Arial", 12), foreground="gray").pack(expand=True)
+        
+        paned.add(timeline_list_frame, weight=1)
+        paned.add(viz_frame, weight=1)
         paned.add(stats_frame, weight=1)
         
         # Store timeline data
         self.timeline_events = []
+        self.filtered_timeline_events = []  # For date range filtering
+        self.selected_timeline_files = []  # For subset selection
+        
+        # Store archival metadata
+        self.archival_metadata = {}
+    
+    def on_timeline_double_click(self, event):
+        """Handle double-click on timeline event to show document"""
+        selection = self.timeline_tree.selection()
+        if not selection:
+            return
+        
+        item = self.timeline_tree.item(selection[0])
+        values = item['values']
+        if len(values) < 4:
+            return
+        
+        filename = values[3]  # Document column
+        
+        # Find the file in the ledger
+        matching_rows = self.ledger.df[self.ledger.df['filename'] == filename]
+        if matching_rows.empty:
+            messagebox.showwarning("File Not Found", f"Could not find file: {filename}")
+            return
+        
+        filepath = matching_rows.iloc[0]['filepath']
+        self.on_tree_double_click(None, filepath=filepath)
+    
+    def on_tree_double_click(self, event, filepath=None):
+        """Handle double-click on tree item to show full OCR text with image preview"""
+        if filepath:
+            # Direct filepath provided (from timeline)
+            matching_rows = self.ledger.df[self.ledger.df['filepath'] == filepath]
+            if matching_rows.empty:
+                return
+            row = matching_rows.iloc[0]
+            filename = row['filename']
+        else:
+            # From tree selection
+            item = self.tree.selection()[0] if self.tree.selection() else None
+            if not item:
+                return
+            
+            values = self.tree.item(item)['values']
+            filename = values[0]
+            
+            # Find the full OCR text and file path
+            matching_rows = self.ledger.df[self.ledger.df['filename'] == filename]
+            if matching_rows.empty:
+                return
+            
+            row = matching_rows.iloc[0]
+            filepath = row.get('filepath', '')
+        
+        # Get OCR results
+        easyocr_text = str(row.get('easyocr_ocr', '') or '')
+        tesseract_text = str(row.get('tesseract_ocr', '') or '')
+        pypdf2_text = str(row.get('pypdf2_ocr', '') or '')
+        openai_text = str(row.get('openai_ocr_ocr', '') or '')
+        ollama_text = str(row.get('ollama_ocr_ocr', '') or '')
+        
+        # Show full text in dialog with image preview
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"OCR Results - {filename}")
+        dialog.geometry("1200x700")
+        dialog.transient(self.root)
+        
+        # Main container with paned window
+        main_paned = ttk.PanedWindow(dialog, orient=tk.HORIZONTAL)
+        main_paned.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Left side - OCR text tabs
+        notebook = ttk.Notebook(main_paned)
+        
+        # Create OCR tabs
+        ocr_data = [
+            ("EasyOCR", easyocr_text, "easyocr"),
+            ("Tesseract", tesseract_text, "tesseract"), 
+            ("PyPDF2", pypdf2_text, "pypdf2"),
+            ("OpenAI OCR", openai_text, "openai_ocr"),
+            ("Ollama OCR", ollama_text, "ollama_ocr")
+        ]
+        
+        for tab_name, text_content, engine_key in ocr_data:
+            if text_content.strip():
+                frame = ttk.Frame(notebook)
+                notebook.add(frame, text=tab_name)
+                
+                # Add archive button at top of each tab
+                button_frame = ttk.Frame(frame)
+                button_frame.pack(fill=tk.X, pady=(0, 5))
+                
+                archive_btn = ttk.Button(button_frame, text=f"🗄️ Archive {tab_name}", 
+                                       command=lambda e=engine_key: self.archive_ocr_result(row['file_id'], e))
+                archive_btn.pack(side=tk.LEFT)
+                
+                # Text widget with scrollbar
+                text_widget_frame = ttk.Frame(frame)
+                text_widget_frame.pack(fill=tk.BOTH, expand=True)
+                
+                text_widget = tk.Text(text_widget_frame, wrap=tk.WORD, font=("Consolas", 9))
+                scrollbar = ttk.Scrollbar(text_widget_frame, orient=tk.VERTICAL, command=text_widget.yview)
+                text_widget.configure(yscrollcommand=scrollbar.set)
+                
+                text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+                scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+                
+                text_widget.insert(1.0, text_content)
+                text_widget.config(state=tk.DISABLED)
+        
+        # Add NER results tab
+        ner_entities = str(row.get('named_entities', '') or '')
+        if ner_entities and ner_entities != 'nan' and ner_entities.strip():
+            ner_frame = ttk.Frame(notebook)
+            notebook.add(ner_frame, text="🏷️ Named Entities")
+            
+            # NER text widget with scrollbar
+            ner_text_frame = ttk.Frame(ner_frame)
+            ner_text_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+            
+            ner_text_widget = tk.Text(ner_text_frame, wrap=tk.WORD, font=("Consolas", 9))
+            ner_scrollbar = ttk.Scrollbar(ner_text_frame, orient=tk.VERTICAL, command=ner_text_widget.yview)
+            ner_text_widget.configure(yscrollcommand=ner_scrollbar.set)
+            
+            ner_text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            ner_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            
+            ner_text_widget.insert(1.0, ner_entities)
+            ner_text_widget.config(state=tk.DISABLED)
+        
+        main_paned.add(notebook, weight=1)
+        
+        # Right side - Document preview with open button
+        preview_frame = ttk.LabelFrame(main_paned, text="Document Preview", padding="10")
+        
+        # Add open externally button for PDFs
+        file_ext = os.path.splitext(filepath)[1].lower()
+        if file_ext == '.pdf':
+            button_frame = ttk.Frame(preview_frame)
+            button_frame.pack(fill=tk.X, pady=(0, 10))
+            ttk.Button(button_frame, text="📄 Open PDF Externally", 
+                      command=lambda: self.open_file_externally(filepath)).pack()
+        
+        self._create_document_preview(preview_frame, filepath)
+        main_paned.add(preview_frame, weight=1)
+        
+        # Close button
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(pady=5)
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack()
+    
+    def select_timeline_files(self):
+        """Show dialog to select subset of files for timeline analysis"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Select Files for Timeline Analysis")
+        dialog.geometry("800x600")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        ttk.Label(dialog, text="📂 Select Files for Timeline Analysis", font=("Arial", 14, "bold")).pack(pady=10)
+        
+        # Instructions
+        inst_frame = ttk.Frame(dialog)
+        inst_frame.pack(fill=tk.X, padx=10, pady=5)
+        ttk.Label(inst_frame, text="• Select multiple files with Ctrl+Click  • Check/uncheck selected files with buttons below", 
+                 font=("Arial", 9), foreground="gray").pack()
+        
+        # File tree with archival structure
+        tree_frame = ttk.Frame(dialog)
+        tree_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        
+        # Treeview with archival grouping
+        file_tree = ttk.Treeview(tree_frame, columns=['selected', 'filepath'], show='tree headings', selectmode='extended')
+        file_tree.heading('#0', text='Archive Structure / File')
+        file_tree.heading('selected', text='Selected')
+        file_tree.heading('filepath', text='File Path')
+        file_tree.column('#0', width=300)
+        file_tree.column('selected', width=80)
+        file_tree.column('filepath', width=300)
+        
+        scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=file_tree.yview)
+        file_tree.configure(yscrollcommand=scrollbar.set)
+        
+        file_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Build archival structure like in Processing tab
+        groups = {}
+        file_items = {}  # Map file_id to tree item
+        
+        for _, row in self.ledger.df.iterrows():
+            collection, box, folder = self.parse_archival_path(row['filepath'])
+            group_key = f"{collection} > {box} > {folder}"
+            
+            if group_key not in groups:
+                groups[group_key] = []
+            groups[group_key].append(row)
+        
+        # Populate tree with groups and files
+        for group_key, files in groups.items():
+            # Insert group header
+            group_item = file_tree.insert('', 'end', 
+                text=f"📁 {group_key}",
+                values=['', ''],
+                tags=('group',),
+                open=True)
+            
+            # Insert files under group
+            for row in files:
+                file_id = row['file_id']
+                is_selected = file_id in self.selected_timeline_files if self.selected_timeline_files else True
+                
+                file_item = file_tree.insert(group_item, 'end', 
+                    text=row['filename'],
+                    values=['✓' if is_selected else '', row['filepath']],
+                    tags=('file',))
+                
+                file_items[file_item] = {'file_id': file_id, 'filename': row['filename'], 'selected': is_selected}
+        
+        # Configure styling
+        file_tree.tag_configure('group', background='#e8f4fd', font=('Arial', 9, 'bold'))
+        file_tree.tag_configure('file', background='white')
+        
+        # Control buttons
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(fill=tk.X, padx=10, pady=10)
+        
+        def check_selected():
+            """Check selected files"""
+            selected_items = file_tree.selection()
+            for item in selected_items:
+                if item in file_items:
+                    file_items[item]['selected'] = True
+                    file_tree.item(item, values=['✓', file_tree.item(item)['values'][1]])
+        
+        def uncheck_selected():
+            """Uncheck selected files"""
+            selected_items = file_tree.selection()
+            for item in selected_items:
+                if item in file_items:
+                    file_items[item]['selected'] = False
+                    file_tree.item(item, values=['', file_tree.item(item)['values'][1]])
+        
+        def select_all_files():
+            """Check all files"""
+            for item in file_items:
+                file_items[item]['selected'] = True
+                file_tree.item(item, values=['✓', file_tree.item(item)['values'][1]])
+        
+        def select_no_files():
+            """Uncheck all files"""
+            for item in file_items:
+                file_items[item]['selected'] = False
+                file_tree.item(item, values=['', file_tree.item(item)['values'][1]])
+        
+        def apply_selection():
+            """Apply the selection"""
+            self.selected_timeline_files = [data['file_id'] for data in file_items.values() if data['selected']]
+            count = len(self.selected_timeline_files)
+            total = len(file_items)
+            if count == total:
+                self.timeline_selection_var.set("All files selected")
+            else:
+                self.timeline_selection_var.set(f"{count} of {total} files selected")
+            dialog.destroy()
+        
+        # Button layout
+        left_buttons = ttk.Frame(button_frame)
+        left_buttons.pack(side=tk.LEFT)
+        
+        ttk.Button(left_buttons, text="✓ Check Selected", command=check_selected).pack(side=tk.LEFT, padx=2)
+        ttk.Button(left_buttons, text="✗ Uncheck Selected", command=uncheck_selected).pack(side=tk.LEFT, padx=2)
+        ttk.Button(left_buttons, text="📂 Expand All", command=lambda: self.expand_collapse_tree(file_tree, True)).pack(side=tk.LEFT, padx=5)
+        ttk.Button(left_buttons, text="📁 Collapse All", command=lambda: self.expand_collapse_tree(file_tree, False)).pack(side=tk.LEFT, padx=2)
+        ttk.Button(left_buttons, text="Select All", command=select_all_files).pack(side=tk.LEFT, padx=10)
+        ttk.Button(left_buttons, text="Select None", command=select_no_files).pack(side=tk.LEFT, padx=2)
+        
+        right_buttons = ttk.Frame(button_frame)
+        right_buttons.pack(side=tk.RIGHT)
+        
+        ttk.Button(right_buttons, text="Apply", command=apply_selection).pack(side=tk.LEFT, padx=5)
+        ttk.Button(right_buttons, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+    
+    def filter_timeline_by_date(self):
+        """Filter timeline events by date range"""
+        try:
+            start_year = int(self.start_year_var.get()) if self.start_year_var.get() else None
+            end_year = int(self.end_year_var.get()) if self.end_year_var.get() else None
+            
+            if start_year is None or end_year is None:
+                messagebox.showwarning("Invalid Range", "Please enter both start and end years")
+                return
+            
+            if start_year > end_year:
+                messagebox.showwarning("Invalid Range", "Start year must be less than or equal to end year")
+                return
+            
+            # Filter events
+            self.filtered_timeline_events = [
+                event for event in self.timeline_events 
+                if event['year'] and start_year <= event['year'] <= end_year
+            ]
+            
+            # Update displays
+            self.refresh_filtered_timeline_display()
+            
+        except ValueError:
+            messagebox.showwarning("Invalid Input", "Please enter valid years (numbers only)")
+    
+    def reset_timeline_filter(self):
+        """Reset timeline filter to show all events"""
+        self.filtered_timeline_events = self.timeline_events.copy()
+        if self.timeline_events:
+            years = [event['year'] for event in self.timeline_events if event['year']]
+            if years:
+                self.start_year_var.set(str(min(years)))
+                self.end_year_var.set(str(max(years)))
+        self.refresh_filtered_timeline_display()
+    
+    def refresh_filtered_timeline_display(self):
+        """Refresh timeline display with filtered events"""
+        # Clear existing items
+        for item in self.timeline_tree.get_children():
+            self.timeline_tree.delete(item)
+        
+        events_to_show = self.filtered_timeline_events if self.filtered_timeline_events else self.timeline_events
+        
+        if not events_to_show:
+            self.timeline_tree.insert('', 'end', text="No events in range", values=['', '', '', 'Adjust date range'])
+        else:
+            # Add filtered timeline events
+            for event in events_to_show:
+                self.timeline_tree.insert('', 'end', 
+                                         text=event['date_text'],
+                                         values=[event['year'], f"{event['confidence']:.2f}", 
+                                               event['type'], event['filename']])
+        
+        # Update statistics with filtered data
+        self.update_filtered_timeline_statistics()
+    
+    def update_filtered_timeline_statistics(self):
+        """Update timeline statistics with filtered data"""
+        events_to_analyze = self.filtered_timeline_events if self.filtered_timeline_events else self.timeline_events
+        
+        self.timeline_stats_text.config(state=tk.NORMAL)
+        self.timeline_stats_text.delete(1.0, tk.END)
+        
+        if not events_to_analyze:
+            self.timeline_stats_text.insert(tk.END, "No timeline events in selected range")
+            self.timeline_stats_text.config(state=tk.DISABLED)
+            return
+        
+        stats = self.timeline_extractor.get_timeline_statistics(events_to_analyze)
+        
+        report = f"FILTERED TIMELINE STATISTICS\n"
+        report += f"=" * 30 + "\n\n"
+        report += f"Events in Range: {len(events_to_analyze)}\n"
+        report += f"Total Events: {len(self.timeline_events)}\n"
+        report += f"Unique Years: {stats['unique_years']}\n"
+        report += f"Year Range: {stats['year_range'][0]} - {stats['year_range'][1]}\n\n"
+        
+        report += f"TOP DECADES:\n"
+        for decade, count in sorted(stats['decades'].items(), key=lambda x: x[1], reverse=True)[:5]:
+            report += f"  {decade}s: {count} events\n"
+        
+        report += f"\nMOST REFERENCED YEARS:\n"
+        for year, count in stats['most_common_years'][:10]:
+            report += f"  {year}: {count} documents\n"
+        
+        self.timeline_stats_text.insert(1.0, report)
+        self.timeline_stats_text.config(state=tk.DISABLED)
+    
+    def show_timeline_chart(self):
+        """Show interactive timeline chart"""
+        events_to_chart = self.filtered_timeline_events if self.filtered_timeline_events else self.timeline_events
+        
+        if not events_to_chart:
+            messagebox.showwarning("No Timeline", "Extract timeline first or adjust date range")
+            return
+        
+        if not MATPLOTLIB_AVAILABLE:
+            messagebox.showerror("Matplotlib Required", "Install matplotlib: pip install matplotlib")
+            return
+        
+        # Clear existing visualization
+        for widget in self.timeline_viz_frame.winfo_children():
+            widget.destroy()
+        
+        # Create timeline chart
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        # Extract years and document counts from filtered events
+        years = [event['year'] for event in events_to_chart if event['year']]
+        if not years:
+            ttk.Label(self.timeline_viz_frame, text="No valid years found in timeline").pack(expand=True)
+            return
+        
+        # Create scatter plot
+        from collections import Counter
+        year_counts = Counter(years)
+        x_vals = list(year_counts.keys())
+        y_vals = list(year_counts.values())
+        
+        ax.scatter(x_vals, y_vals, alpha=0.7, s=100)
+        ax.set_xlabel('Year')
+        ax.set_ylabel('Number of Documents')
+        ax.set_title('Document Timeline')
+        ax.grid(True, alpha=0.3)
+        
+        # Add labels for significant points
+        for x, y in zip(x_vals, y_vals):
+            if y > 1:
+                ax.annotate(f'{y} docs', (x, y), xytext=(5, 5), textcoords='offset points', fontsize=8)
+        
+        plt.tight_layout()
+        
+        canvas = FigureCanvasTkAgg(fig, self.timeline_viz_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+    
+    def show_document_frequency(self):
+        """Show document frequency histogram"""
+        events_to_chart = self.filtered_timeline_events if self.filtered_timeline_events else self.timeline_events
+        
+        if not events_to_chart:
+            messagebox.showwarning("No Timeline", "Extract timeline first or adjust date range")
+            return
+        
+        if not MATPLOTLIB_AVAILABLE:
+            messagebox.showerror("Matplotlib Required", "Install matplotlib: pip install matplotlib")
+            return
+        
+        # Clear existing visualization
+        for widget in self.timeline_viz_frame.winfo_children():
+            widget.destroy()
+        
+        # Create frequency histogram
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        years = [event['year'] for event in events_to_chart if event['year']]
+        if not years:
+            ttk.Label(self.timeline_viz_frame, text="No valid years found in timeline").pack(expand=True)
+            return
+        
+        # Create histogram by decade
+        decades = [(year // 10) * 10 for year in years]
+        from collections import Counter
+        decade_counts = Counter(decades)
+        
+        x_vals = sorted(decade_counts.keys())
+        y_vals = [decade_counts[x] for x in x_vals]
+        
+        bars = ax.bar(x_vals, y_vals, width=8, alpha=0.7)
+        ax.set_xlabel('Decade')
+        ax.set_ylabel('Number of Documents')
+        ax.set_title('Document Frequency by Decade')
+        
+        # Add value labels on bars
+        for bar, val in zip(bars, y_vals):
+            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1, 
+                   str(val), ha='center', va='bottom')
+        
+        plt.tight_layout()
+        
+        canvas = FigureCanvasTkAgg(fig, self.timeline_viz_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
     
     def extract_timeline(self):
         """Extract timeline from documents"""
         ocr_source = self.timeline_ocr_var.get()
         
         def timeline_worker():
-            self.status_var.set("Extracting timeline from documents...")
-            self.log_activity("Started timeline extraction")
-            
             try:
+                # Update GUI on main thread
+                self.root.after(0, lambda: self.status_var.set("Extracting timeline from documents..."))
+                self.root.after(0, lambda: self.log_activity("Started timeline extraction"))
+                
+                # Use selected files or all files
+                files_to_process = self.ledger.df
+                if self.selected_timeline_files:
+                    files_to_process = self.ledger.df[self.ledger.df['file_id'].isin(self.selected_timeline_files)]
+                
                 # Extract timeline
-                self.timeline_events = self.timeline_extractor.extract_timeline_from_ledger(self.ledger.df, ocr_source)
+                self.timeline_events = self.timeline_extractor.extract_timeline_from_ledger(files_to_process, ocr_source)
                 
                 if not self.timeline_events:
-                    self.status_var.set("No timeline events found")
-                    messagebox.showinfo("No Timeline", "No dates or temporal references found in documents")
+                    self.root.after(0, lambda: self.status_var.set("No timeline events found"))
+                    self.root.after(0, lambda: messagebox.showinfo("No Timeline", "No dates or temporal references found in documents"))
                     return
                 
-                self.log_activity(f"Found {len(self.timeline_events)} timeline events")
-                self.status_var.set(f"Timeline extraction completed - {len(self.timeline_events)} events found")
+                self.root.after(0, lambda: self.log_activity(f"Found {len(self.timeline_events)} timeline events"))
+                self.root.after(0, lambda: self.status_var.set(f"Timeline extraction completed - {len(self.timeline_events)} events found"))
                 
                 # Update display
                 self.root.after(0, self.refresh_timeline_display)
                 
             except Exception as e:
-                self.log_activity(f"Timeline extraction error: {str(e)}")
-                self.status_var.set(f"Timeline extraction failed: {str(e)}")
-                messagebox.showerror("Timeline Error", str(e))
+                self.root.after(0, lambda: self.log_activity(f"Timeline extraction error: {str(e)}"))
+                self.root.after(0, lambda: self.status_var.set(f"Timeline extraction failed: {str(e)}"))
+                self.root.after(0, lambda: messagebox.showerror("Timeline Error", str(e)))
         
         self.progress.start()
         threading.Thread(target=timeline_worker, daemon=True).start()
@@ -2721,6 +3355,17 @@ Total Files: {summary['total_files']}
         # Update statistics
         self.update_timeline_statistics()
         self.progress.stop()
+        
+        # Show date range controls if we have events with years
+        if self.timeline_events:
+            years = [event['year'] for event in self.timeline_events if event['year']]
+            if years:
+                self.date_range_frame.pack(fill=tk.X, pady=2)
+                # Set default range to full span
+                self.start_year_var.set(str(min(years)))
+                self.end_year_var.set(str(max(years)))
+                # Initialize filtered events to all events
+                self.filtered_timeline_events = self.timeline_events.copy()
     
     def update_timeline_statistics(self):
         """Update timeline statistics display"""
@@ -2784,20 +3429,46 @@ Total Files: {summary['total_files']}
     def setup_geographic_analysis(self, parent_frame):
         """Setup geographic analysis interface"""
         parent_frame.columnconfigure(0, weight=1)
-        parent_frame.rowconfigure(1, weight=1)
+        parent_frame.rowconfigure(2, weight=1)
+        
+        # Add explanation header
+        info_frame = ttk.LabelFrame(parent_frame, text="🌍 Geographic Analysis Overview", padding="10")
+        info_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        info_text = tk.Text(info_frame, height=3, wrap=tk.WORD, bg='#f8f8f8', font=("Arial", 9))
+        info_text.pack(fill=tk.X)
+        info_text.insert(1.0, 
+            "Map geographic locations mentioned in your documents. Select files to analyze, choose map type (global or US), "
+            "then generate interactive heat maps showing location frequency. Requires Named Entity Recognition to extract "
+            "place names first. Export location data in various formats.")
+        info_text.config(state=tk.DISABLED)
         
         # Controls
         controls_frame = ttk.Frame(parent_frame)
         controls_frame.pack(fill=tk.X, padx=5, pady=5)
         
-        ttk.Label(controls_frame, text="Map Type:").pack(side=tk.LEFT, padx=5)
+        # First row of controls
+        controls_row1 = ttk.Frame(controls_frame)
+        controls_row1.pack(fill=tk.X, pady=2)
+        
+        ttk.Label(controls_row1, text="Map Type:").pack(side=tk.LEFT, padx=5)
         self.map_type_var = tk.StringVar(value="global")
-        map_combo = ttk.Combobox(controls_frame, textvariable=self.map_type_var,
+        map_combo = ttk.Combobox(controls_row1, textvariable=self.map_type_var,
                                 values=["global", "us_only"], width=10)
         map_combo.pack(side=tk.LEFT, padx=5)
         
-        ttk.Button(controls_frame, text="🌍 Generate Heat Map", command=self.generate_heat_map).pack(side=tk.LEFT, padx=10)
-        ttk.Button(controls_frame, text="💾 Export Locations", command=self.export_geo_data).pack(side=tk.LEFT, padx=5)
+        ttk.Button(controls_row1, text="📂 Select Files", command=self.select_geo_files).pack(side=tk.LEFT, padx=10)
+        ttk.Button(controls_row1, text="🌍 Generate Heat Map", command=self.generate_heat_map).pack(side=tk.LEFT, padx=5)
+        
+        # Second row of controls
+        controls_row2 = ttk.Frame(controls_frame)
+        controls_row2.pack(fill=tk.X, pady=2)
+        
+        ttk.Button(controls_row2, text="💾 Export Locations", command=self.export_geo_data).pack(side=tk.LEFT, padx=5)
+        
+        # File selection status
+        self.geo_selection_var = tk.StringVar(value="All files selected")
+        ttk.Label(controls_frame, textvariable=self.geo_selection_var, font=("Arial", 9), foreground="blue").pack(anchor=tk.W, padx=5, pady=2)
         
         # Main paned window
         paned = ttk.PanedWindow(parent_frame, orient=tk.HORIZONTAL)
@@ -2836,6 +3507,134 @@ Total Files: {summary['total_files']}
         
         # Store location data
         self.location_data = []
+        self.selected_geo_files = []  # For subset selection
+    
+    def select_geo_files(self):
+        """Show dialog to select subset of files for geographic analysis"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Select Files for Geographic Analysis")
+        dialog.geometry("800x600")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        ttk.Label(dialog, text="🌍 Select Files for Geographic Analysis", font=("Arial", 14, "bold")).pack(pady=10)
+        
+        # Instructions
+        inst_frame = ttk.Frame(dialog)
+        inst_frame.pack(fill=tk.X, padx=10, pady=5)
+        ttk.Label(inst_frame, text="• Select multiple files with Ctrl+Click  • Check/uncheck selected files with buttons below", 
+                 font=("Arial", 9), foreground="gray").pack()
+        
+        # File tree with archival structure
+        tree_frame = ttk.Frame(dialog)
+        tree_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        
+        # Treeview with archival grouping
+        file_tree = ttk.Treeview(tree_frame, columns=['selected', 'filepath'], show='tree headings', selectmode='extended')
+        file_tree.heading('#0', text='Archive Structure / File')
+        file_tree.heading('selected', text='Selected')
+        file_tree.heading('filepath', text='File Path')
+        file_tree.column('#0', width=300)
+        file_tree.column('selected', width=80)
+        file_tree.column('filepath', width=300)
+        
+        scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=file_tree.yview)
+        file_tree.configure(yscrollcommand=scrollbar.set)
+        
+        file_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Build archival structure
+        groups = {}
+        file_items = {}  # Map file_id to tree item
+        
+        for _, row in self.ledger.df.iterrows():
+            collection, box, folder = self.parse_archival_path(row['filepath'])
+            group_key = f"{collection} > {box} > {folder}"
+            
+            if group_key not in groups:
+                groups[group_key] = []
+            groups[group_key].append(row)
+        
+        # Populate tree with groups and files
+        for group_key, files in groups.items():
+            # Insert group header
+            group_item = file_tree.insert('', 'end', 
+                text=f"📁 {group_key}",
+                values=['', ''],
+                tags=('group',),
+                open=True)
+            
+            # Insert files under group
+            for row in files:
+                file_id = row['file_id']
+                is_selected = file_id in self.selected_geo_files if self.selected_geo_files else True
+                
+                file_item = file_tree.insert(group_item, 'end', 
+                    text=row['filename'],
+                    values=['✓' if is_selected else '', row['filepath']],
+                    tags=('file',))
+                
+                file_items[file_item] = {'file_id': file_id, 'filename': row['filename'], 'selected': is_selected}
+        
+        # Configure styling
+        file_tree.tag_configure('group', background='#e8f4fd', font=('Arial', 9, 'bold'))
+        file_tree.tag_configure('file', background='white')
+        
+        # Control buttons
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(fill=tk.X, padx=10, pady=10)
+        
+        def check_selected():
+            selected_items = file_tree.selection()
+            for item in selected_items:
+                if item in file_items:
+                    file_items[item]['selected'] = True
+                    file_tree.item(item, values=['✓', file_tree.item(item)['values'][1]])
+        
+        def uncheck_selected():
+            selected_items = file_tree.selection()
+            for item in selected_items:
+                if item in file_items:
+                    file_items[item]['selected'] = False
+                    file_tree.item(item, values=['', file_tree.item(item)['values'][1]])
+        
+        def select_all_files():
+            for item in file_items:
+                file_items[item]['selected'] = True
+                file_tree.item(item, values=['✓', file_tree.item(item)['values'][1]])
+        
+        def select_no_files():
+            for item in file_items:
+                file_items[item]['selected'] = False
+                file_tree.item(item, values=['', file_tree.item(item)['values'][1]])
+        
+        def apply_selection():
+            self.selected_geo_files = [data['file_id'] for data in file_items.values() if data['selected']]
+            count = len(self.selected_geo_files)
+            total = len(file_items)
+            if count == total:
+                self.geo_selection_var.set("All files selected")
+            else:
+                self.geo_selection_var.set(f"{count} of {total} files selected")
+            dialog.destroy()
+        
+        # Button layout
+        left_buttons = ttk.Frame(button_frame)
+        left_buttons.pack(side=tk.LEFT)
+        
+        ttk.Button(left_buttons, text="✓ Check Selected", command=check_selected).pack(side=tk.LEFT, padx=2)
+        ttk.Button(left_buttons, text="✗ Uncheck Selected", command=uncheck_selected).pack(side=tk.LEFT, padx=2)
+        ttk.Button(left_buttons, text="📂 Expand All", command=lambda: self.expand_collapse_tree(file_tree, True)).pack(side=tk.LEFT, padx=5)
+        ttk.Button(left_buttons, text="📁 Collapse All", command=lambda: self.expand_collapse_tree(file_tree, False)).pack(side=tk.LEFT, padx=2)
+        ttk.Button(left_buttons, text="Select All", command=select_all_files).pack(side=tk.LEFT, padx=10)
+        ttk.Button(left_buttons, text="Select None", command=select_no_files).pack(side=tk.LEFT, padx=2)
+        
+        right_buttons = ttk.Frame(button_frame)
+        right_buttons.pack(side=tk.RIGHT)
+        
+        ttk.Button(right_buttons, text="Apply", command=apply_selection).pack(side=tk.LEFT, padx=5)
+        ttk.Button(right_buttons, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
     
     def generate_heat_map(self):
         """Generate geographic heat map"""
@@ -2856,8 +3655,13 @@ Total Files: {summary['total_files']}
             self.log_activity("Started geographic analysis")
             
             try:
+                # Use selected files or all files
+                files_to_process = self.ledger.df
+                if self.selected_geo_files:
+                    files_to_process = self.ledger.df[self.ledger.df['file_id'].isin(self.selected_geo_files)]
+                
                 # Extract entities first
-                entities_by_type = self.entity_matcher.extract_entities_from_ledger(self.ledger.df)
+                entities_by_type = self.entity_matcher.extract_entities_from_ledger(files_to_process)
                 
                 if 'GPE' not in entities_by_type or not entities_by_type['GPE']:
                     self.status_var.set("No location entities found")
@@ -3013,7 +3817,8 @@ Total Files: {summary['total_files']}
                 files_to_process = self.get_files_for_batch_processing(
                     config['num_files'], 
                     config['ocr_engines'], 
-                    config['include_ner']
+                    config['include_ner'],
+                    config['skip_pdfs']
                 )
                 
                 if files_to_process.empty:
@@ -3105,12 +3910,16 @@ Total Files: {summary['total_files']}
         self.progress.start()
         threading.Thread(target=batch_worker, daemon=True).start()
     
-    def get_files_for_batch_processing(self, num_files, selected_engines=None, include_ner=False):
+    def get_files_for_batch_processing(self, num_files, selected_engines=None, include_ner=False, skip_pdfs=False):
         """Get files that need processing for batch operation based on selected operations"""
         all_files = self.ledger.df
         needs_processing = []
         
         for _, row in all_files.iterrows():
+            # Skip PDFs if requested
+            if skip_pdfs and row.get('file_type', '').lower() == '.pdf':
+                continue
+                
             file_needs_work = False
             
             # Check document classification needs (for images only)
@@ -3191,6 +4000,16 @@ Total Files: {summary['total_files']}
             if engine_key not in self.ocr.models:
                 cb.configure(state='disabled')
         
+        # File Type Options
+        file_type_frame = ttk.LabelFrame(dialog, text="File Type Options")
+        file_type_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        include_classify_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(file_type_frame, text="Include document classification", variable=include_classify_var).pack(anchor=tk.W, padx=10, pady=2)
+        
+        skip_pdfs_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(file_type_frame, text="Skip PDFs (process images only)", variable=skip_pdfs_var).pack(anchor=tk.W, padx=10, pady=2)
+        
         # NER options
         ner_frame = ttk.LabelFrame(dialog, text="Named Entity Recognition (Optional)")
         ner_frame.pack(fill=tk.X, padx=10, pady=5)
@@ -3225,6 +4044,8 @@ Total Files: {summary['total_files']}
             
             result['num_files'] = num_files
             result['ocr_engines'] = selected_engines
+            result['include_classify'] = include_classify_var.get()
+            result['skip_pdfs'] = skip_pdfs_var.get()
             result['include_ner'] = include_ner_var.get()
             result['ner_method'] = ner_method_var.get()
             
@@ -3248,7 +4069,19 @@ Total Files: {summary['total_files']}
     def setup_topic_modeling(self, parent_frame):
         """Setup topic modeling interface"""
         parent_frame.columnconfigure(0, weight=1)
-        parent_frame.rowconfigure(1, weight=1)
+        parent_frame.rowconfigure(2, weight=1)
+        
+        # Add explanation header
+        info_frame = ttk.LabelFrame(parent_frame, text="📊 Topic Modeling Overview", padding="10")
+        info_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        info_text = tk.Text(info_frame, height=3, wrap=tk.WORD, bg='#f8f8f8', font=("Arial", 9))
+        info_text.pack(fill=tk.X)
+        info_text.insert(1.0, 
+            "Discover hidden themes and topics in your document collection using machine learning. "
+            "Select OCR source, set number of topics, and choose modeling method (LDA, NMF, or BERT). "
+            "View topic keywords and see which documents belong to each topic.")
+        info_text.config(state=tk.DISABLED)
         
         # Controls
         controls_frame = ttk.Frame(parent_frame)
@@ -3639,7 +4472,19 @@ Total Files: {summary['total_files']}
     def setup_entity_browser(self, parent_frame):
         """Setup entity browser interface"""
         parent_frame.columnconfigure(0, weight=1)
-        parent_frame.rowconfigure(1, weight=1)
+        parent_frame.rowconfigure(2, weight=1)
+        
+        # Add explanation header
+        info_frame = ttk.LabelFrame(parent_frame, text="🏷️ Entity Browser Overview", padding="10")
+        info_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        info_text = tk.Text(info_frame, height=3, wrap=tk.WORD, bg='#f8f8f8', font=("Arial", 9))
+        info_text.pack(fill=tk.X)
+        info_text.insert(1.0, 
+            "Browse and manage named entities (people, organizations, places) extracted from your documents. "
+            "Select entity types, merge similar entities, and get AI explanations of their historical significance. "
+            "Requires Named Entity Recognition (NER) to be run first.")
+        info_text.config(state=tk.DISABLED)
         
         # Controls
         controls_frame = ttk.Frame(parent_frame)
@@ -3651,7 +4496,10 @@ Total Files: {summary['total_files']}
                                    values=["PERSON", "ORG", "GPE", "DATE", "MONEY", "EVENT", "FAC", "PRODUCT"], width=12)
         entity_combo.pack(side=tk.LEFT, padx=5)
         
-        ttk.Button(controls_frame, text="🔍 Find & Merge Similar", command=self.find_similar_entities).pack(side=tk.LEFT, padx=10)
+        ttk.Button(controls_frame, text="🔍 Find & Merge Similar", command=self.find_similar_entities).pack(side=tk.LEFT, padx=5)
+        ttk.Button(controls_frame, text="🔗 Merge Selected", command=self.merge_selected_entities).pack(side=tk.LEFT, padx=5)
+        ttk.Button(controls_frame, text="🧠 Explain Entity", command=self.explain_selected_entity).pack(side=tk.LEFT, padx=5)
+        ttk.Button(controls_frame, text="⚙️ Settings", command=self.show_matching_settings).pack(side=tk.LEFT, padx=5)
         ttk.Button(controls_frame, text="🔄 Refresh", command=self.refresh_entity_browser).pack(side=tk.LEFT, padx=5)
         
         # Main paned window
@@ -3660,10 +4508,12 @@ Total Files: {summary['total_files']}
         
         # Entity list
         entity_list_frame = ttk.LabelFrame(paned, text="Entities")
-        self.entity_tree = ttk.Treeview(entity_list_frame, columns=['count'], show='tree headings')
+        self.entity_tree = ttk.Treeview(entity_list_frame, columns=['count', 'alt_names'], show='tree headings', selectmode='extended')
         self.entity_tree.heading('#0', text='Entity')
         self.entity_tree.heading('count', text='Count')
+        self.entity_tree.heading('alt_names', text='Alternative Names')
         self.entity_tree.column('count', width=60)
+        self.entity_tree.column('alt_names', width=200)
         
         entity_scroll = ttk.Scrollbar(entity_list_frame, orient=tk.VERTICAL, command=self.entity_tree.yview)
         self.entity_tree.configure(yscrollcommand=entity_scroll.set)
@@ -3685,8 +4535,9 @@ Total Files: {summary['total_files']}
         paned.add(entity_list_frame, weight=1)
         paned.add(doc_list_frame, weight=1)
         
-        # Bind selection
+        # Bind selection and double-click
         self.entity_tree.bind('<<TreeviewSelect>>', self.on_entity_select)
+        self.entity_docs_tree.bind('<Double-1>', self.on_entity_doc_double_click)
         entity_combo.bind('<<ComboboxSelected>>', lambda e: self.refresh_entity_browser())
         
         # Auto-refresh on tab creation
@@ -3725,11 +4576,16 @@ Total Files: {summary['total_files']}
             
             selected_type = self.entity_type_var.get()
             if selected_type in stats and stats[selected_type]['entities']:
-                for entity_text, occurrences in stats[selected_type]['entities'].items():
-                    self.entity_tree.insert('', 'end', text=entity_text, values=[len(occurrences)])
+                # Sort entities by count (descending)
+                sorted_entities = sorted(stats[selected_type]['entities'].items(), 
+                                       key=lambda x: len(x[1]), reverse=True)
+                for entity_text, occurrences in sorted_entities:
+                    # Check for alternative names (stored in entity metadata)
+                    alt_names = getattr(self, 'entity_alt_names', {}).get(entity_text, '')
+                    self.entity_tree.insert('', 'end', text=entity_text, values=[len(occurrences), alt_names])
             else:
                 # Show message if no entities found
-                self.entity_tree.insert('', 'end', text=f"No {selected_type} entities found", values=['0'])
+                self.entity_tree.insert('', 'end', text=f"No {selected_type} entities found", values=['0', ''])
         except Exception as e:
             print(f"Entity browser refresh error: {e}")
             # Clear existing items
@@ -3768,6 +4624,287 @@ Total Files: {summary['total_files']}
         else:
             self.entity_docs_tree.insert('', 'end', values=["No documents found"])
     
+    def on_entity_doc_double_click(self, event):
+        """Handle double-click on entity document to open OCR viewer"""
+        selection = self.entity_docs_tree.selection()
+        if not selection:
+            return
+        
+        item = self.entity_docs_tree.item(selection[0])
+        filename = item['values'][0]
+        
+        # Skip if it's a status message
+        if filename in ["No documents found", "← Select an entity to see documents"]:
+            return
+        
+        # Find the file in the ledger and open OCR viewer
+        matching_rows = self.ledger.df[self.ledger.df['filename'] == filename]
+        if not matching_rows.empty:
+            filepath = matching_rows.iloc[0]['filepath']
+            self.on_tree_double_click(None, filepath=filepath)
+    
+    def show_matching_settings(self):
+        """Show entity matching configuration dialog"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Entity Matching Settings")
+        dialog.geometry("400x300")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        ttk.Label(dialog, text="🔧 Entity Matching Settings", font=("Arial", 12, "bold")).pack(pady=10)
+        
+        # Similarity threshold
+        threshold_frame = ttk.LabelFrame(dialog, text="Similarity Threshold")
+        threshold_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        ttk.Label(threshold_frame, text="Minimum similarity (0.0-1.0):").pack(anchor=tk.W, padx=10, pady=5)
+        threshold_var = tk.StringVar(value=str(self.entity_matcher.similarity_threshold))
+        ttk.Entry(threshold_frame, textvariable=threshold_var, width=10).pack(anchor=tk.W, padx=10, pady=2)
+        
+        ttk.Label(threshold_frame, text="Higher = stricter (0.85 recommended for people)", 
+                 font=("Arial", 8), foreground="gray").pack(anchor=tk.W, padx=10)
+        
+        def apply_settings():
+            try:
+                new_threshold = float(threshold_var.get())
+                if 0.0 <= new_threshold <= 1.0:
+                    self.entity_matcher.similarity_threshold = new_threshold
+                    messagebox.showinfo("Applied", f"Similarity threshold: {new_threshold}")
+                    dialog.destroy()
+                else:
+                    messagebox.showerror("Error", "Must be between 0.0 and 1.0")
+            except ValueError:
+                messagebox.showerror("Error", "Enter a valid number")
+        
+        ttk.Button(dialog, text="✅ Apply", command=apply_settings).pack(pady=20)
+        ttk.Button(dialog, text="❌ Cancel", command=dialog.destroy).pack()
+    
+    def merge_selected_entities(self):
+        """Merge selected entities directly"""
+        selected_items = self.entity_tree.selection()
+        if len(selected_items) < 2:
+            messagebox.showwarning("Selection Required", "Please select 2 or more entities to merge")
+            return
+        
+        # Get selected entity names
+        selected_entities = []
+        for item in selected_items:
+            entity_name = self.entity_tree.item(item)['text']
+            if not entity_name.startswith('No '):
+                selected_entities.append(entity_name)
+        
+        if len(selected_entities) < 2:
+            messagebox.showwarning("Invalid Selection", "Please select valid entities to merge")
+            return
+        
+        # Show merge dialog
+        self.show_merge_dialog(selected_entities)
+    
+    def show_merge_dialog(self, entities):
+        """Show dialog to configure entity merge"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Merge Entities")
+        dialog.geometry("500x400")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        ttk.Label(dialog, text="🔗 Merge Entities", font=("Arial", 14, "bold")).pack(pady=10)
+        
+        # Primary entity selection
+        primary_frame = ttk.LabelFrame(dialog, text="Select Primary Entity")
+        primary_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        primary_var = tk.StringVar(value=entities[0])
+        for entity in entities:
+            ttk.Radiobutton(primary_frame, text=entity, variable=primary_var, value=entity).pack(anchor=tk.W, padx=10, pady=2)
+        
+        # Alternative names preview
+        alt_frame = ttk.LabelFrame(dialog, text="Alternative Names (will be merged)")
+        alt_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        alt_text = tk.Text(alt_frame, height=4, wrap=tk.WORD)
+        alt_text.pack(fill=tk.X, padx=10, pady=5)
+        alt_text.insert(1.0, ', '.join([e for e in entities if e != entities[0]]))
+        
+        def perform_merge():
+            primary_entity = primary_var.get()
+            alt_entities = [e for e in entities if e != primary_entity]
+            
+            # Store alternative names
+            if not hasattr(self, 'entity_alt_names'):
+                self.entity_alt_names = {}
+            
+            existing_alts = self.entity_alt_names.get(primary_entity, '')
+            new_alts = ', '.join(alt_entities)
+            if existing_alts:
+                self.entity_alt_names[primary_entity] = f"{existing_alts}, {new_alts}"
+            else:
+                self.entity_alt_names[primary_entity] = new_alts
+            
+            # Update ledger entries
+            self.apply_direct_entity_merge(primary_entity, alt_entities)
+            
+            messagebox.showinfo("Merge Complete", f"Merged {len(alt_entities)} entities into '{primary_entity}'")
+            dialog.destroy()
+            self.refresh_entity_browser()
+        
+        ttk.Button(dialog, text="✅ Merge", command=perform_merge).pack(pady=20)
+        ttk.Button(dialog, text="❌ Cancel", command=dialog.destroy).pack()
+    
+    def explain_selected_entity(self):
+        """Explain selected entity using AI"""
+        selected_items = self.entity_tree.selection()
+        if len(selected_items) != 1:
+            messagebox.showwarning("Selection Required", "Please select exactly one entity to explain")
+            return
+        
+        if not self.prompt_processor:
+            messagebox.showwarning("AI Required", "Please configure AI models first")
+            return
+        
+        entity_name = self.entity_tree.item(selected_items[0])['text']
+        if entity_name.startswith('No '):
+            return
+        
+        # Get OCR samples containing this entity
+        ocr_samples = self.get_entity_ocr_samples(entity_name)
+        if not ocr_samples:
+            messagebox.showinfo("No Context", f"No OCR text found containing '{entity_name}'")
+            return
+        
+        # Show explanation dialog
+        self.show_entity_explanation_dialog(entity_name, ocr_samples)
+    
+    def get_entity_ocr_samples(self, entity_name, max_samples=5):
+        """Get OCR text samples containing the entity"""
+        samples = []
+        ocr_source = self.ground_truth_engine or 'easyocr'
+        
+        for _, row in self.ledger.df.iterrows():
+            entities_text = str(row.get('named_entities', ''))
+            if entity_name in entities_text:
+                ocr_text = str(row.get(f'{ocr_source}_ocr', '') or '')
+                if ocr_text and ocr_text != 'nan' and entity_name.lower() in ocr_text.lower():
+                    # Extract context around entity mention
+                    words = ocr_text.split()
+                    entity_words = entity_name.split()
+                    
+                    for i, word in enumerate(words):
+                        if any(ew.lower() in word.lower() for ew in entity_words):
+                            start = max(0, i-20)
+                            end = min(len(words), i+20)
+                            context = ' '.join(words[start:end])
+                            samples.append({
+                                'filename': row['filename'],
+                                'context': context
+                            })
+                            break
+                
+                if len(samples) >= max_samples:
+                    break
+        
+        return samples
+    
+    def show_entity_explanation_dialog(self, entity_name, ocr_samples):
+        """Show AI explanation of entity"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"Entity Analysis: {entity_name}")
+        dialog.geometry("800x600")
+        dialog.transient(self.root)
+        
+        ttk.Label(dialog, text=f"🧠 AI Analysis: {entity_name}", font=("Arial", 14, "bold")).pack(pady=10)
+        
+        # Create analysis text widget
+        text_frame = ttk.Frame(dialog)
+        text_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        
+        analysis_text = tk.Text(text_frame, wrap=tk.WORD, font=("Consolas", 9))
+        scroll = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=analysis_text.yview)
+        analysis_text.configure(yscrollcommand=scroll.set)
+        
+        analysis_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        analysis_text.insert(1.0, "Analyzing entity with AI...\n\nPlease wait...")
+        
+        def analyze_entity():
+            try:
+                # Prepare context for AI
+                context_text = f"Entity: {entity_name}\n\nContext samples:\n"
+                for i, sample in enumerate(ocr_samples, 1):
+                    context_text += f"\n{i}. From {sample['filename']}:\n{sample['context']}\n"
+                
+                # Generate AI explanation with new document-focused prompt
+                prompt = f"""Analyze this historical entity based on specific evidence from the archival documents provided. Focus on what the documents actually say rather than general historical knowledge.
+
+Entity: {entity_name}
+
+Document Evidence:
+{context_text}
+
+Please provide a document-focused analysis with specific citations:
+
+1. DOCUMENTARY EVIDENCE: What do these specific documents tell us about {entity_name}? Quote key phrases and cite which documents they come from.
+
+2. ROLES & ACTIVITIES: Based solely on these documents, what roles or activities is {entity_name} involved in? Reference specific documents for each claim.
+
+3. RELATIONSHIPS & CONNECTIONS: What relationships or connections are mentioned in these documents? Cite the specific document for each relationship.
+
+4. CHRONOLOGICAL CONTEXT: What dates or time periods are mentioned in relation to {entity_name} in these documents? List document sources.
+
+5. RESEARCH RECOMMENDATIONS: Which of these specific documents contain the most information about {entity_name}? Rank them by relevance and explain why each is important.
+
+Focus on evidence-based analysis using only what appears in these archival documents. Cite specific document names for every claim. Avoid general historical commentary not supported by the provided evidence."""
+                
+                # Use the existing generate method
+                if self.prompt_processor.model_type == "openai":
+                    explanation = self.prompt_processor._generate_openai(prompt)
+                elif self.prompt_processor.model_type == "ollama":
+                    explanation = self.prompt_processor._generate_ollama(prompt)
+                else:
+                    explanation = "Error: Unknown AI model type"
+                
+                # Update dialog
+                analysis_text.delete(1.0, tk.END)
+                analysis_text.insert(1.0, explanation)
+                
+            except Exception as e:
+                analysis_text.delete(1.0, tk.END)
+                analysis_text.insert(1.0, f"Error generating explanation: {str(e)}")
+        
+        # Start analysis in background
+        threading.Thread(target=analyze_entity, daemon=True).start()
+        
+        ttk.Button(dialog, text="Close", command=dialog.destroy).pack(pady=10)
+    
+    def apply_direct_entity_merge(self, primary_entity, alt_entities):
+        """Apply direct entity merge to ledger"""
+        for alt_entity in alt_entities:
+            # Update all occurrences in ledger
+            for idx, row in self.ledger.df.iterrows():
+                entities_text = str(row.get('named_entities', ''))
+                if alt_entity in entities_text:
+                    updated_entities = entities_text.replace(alt_entity, primary_entity)
+                    self.ledger.df.at[idx, 'named_entities'] = updated_entities
+        
+        self.ledger.save_ledger()
+    
+    def expand_collapse_tree(self, tree_widget, expand=True):
+        """Expand or collapse all items in a treeview"""
+        def process_item(item):
+            if expand:
+                tree_widget.item(item, open=True)
+            else:
+                tree_widget.item(item, open=False)
+            
+            # Process children recursively
+            for child in tree_widget.get_children(item):
+                process_item(child)
+        
+        # Process all top-level items
+        for item in tree_widget.get_children():
+            process_item(item)
+    
     def find_similar_entities(self):
         """Find and group similar entities"""
         entities_by_type = self.entity_matcher.extract_entities_from_ledger(self.ledger.df)
@@ -3777,8 +4914,16 @@ Total Files: {summary['total_files']}
             messagebox.showinfo("No Entities", f"No {selected_type} entities found")
             return
         
+        # Increase threshold for person matching to reduce false positives
+        original_threshold = self.entity_matcher.similarity_threshold
+        if selected_type == 'PERSON':
+            self.entity_matcher.similarity_threshold = 0.85
+        
         similar_groups = self.entity_matcher.find_similar_entities(
             entities_by_type[selected_type], selected_type)
+        
+        # Restore original threshold
+        self.entity_matcher.similarity_threshold = original_threshold
         
         if not similar_groups:
             messagebox.showinfo("No Matches", "No similar entities found")
@@ -3949,6 +5094,497 @@ Total Files: {summary['total_files']}
         except Exception as e:
             ttk.Label(self.preview_frame, text=f"Preview error: {str(e)}", 
                      foreground="red").pack(expand=True)
+    
+    def removed_import_metadata(self):
+        """Import archival metadata from CSV or Excel file"""
+        file_path = filedialog.askopenfilename(
+            title="Select Metadata File",
+            filetypes=[("CSV files", "*.csv"), ("Excel files", "*.xlsx *.xls")]
+        )
+        
+        if not file_path:
+            return
+            
+        try:
+            import pandas as pd
+            import os
+            
+            # Read file
+            if file_path.endswith('.csv'):
+                df = pd.read_csv(file_path)
+            else:
+                df = pd.read_excel(file_path)
+            
+            # Auto-detect columns for Isabel Bevier Papers format
+            matched_count = 0
+            for _, row in df.iterrows():
+                collection = str(row['Collection Title']).strip() if 'Collection Title' in df.columns and pd.notna(row['Collection Title']) else None
+                box = str(row['Container']).strip() if 'Container' in df.columns and pd.notna(row['Container']) else None
+                resource_id = str(row['Resource Identifier']).strip() if 'Resource Identifier' in df.columns and pd.notna(row['Resource Identifier']) else None
+                
+                if all([collection, box, resource_id]):
+                    # Try to match with existing files using Resource Identifier
+                    for file_path in self.ledger.df['filepath']:
+                        if self.match_by_resource_id(file_path, collection, box, resource_id):
+                            self.archival_metadata[file_path] = row.to_dict()
+                            matched_count += 1
+                            break
+            
+            messagebox.showinfo("Import Complete", f"Matched {matched_count} files with metadata")
+            self.refresh_display()
+            
+            # Match with existing files using multiple strategies
+            matched_count = 0
+            folder_metadata = {}  # Store folder-level metadata
+            
+            # First pass: exact filename matches
+            for file_path in self.ledger.df['filepath']:
+                for constructed_path, archival_data in all_metadata.items():
+                    if self.paths_match(file_path, constructed_path):
+                        self.archival_metadata[file_path] = archival_data
+                        matched_count += 1
+                        
+                        # Also store folder-level metadata for other files in same folder
+                        folder_key = self.get_folder_key(file_path)
+                        if folder_key not in folder_metadata:
+                            folder_metadata[folder_key] = archival_data.copy()
+                            folder_metadata[folder_key]['is_folder_level'] = True
+                        break
+            
+            # Second pass: apply folder-level metadata to unmatched files
+            for file_path in self.ledger.df['filepath']:
+                if file_path not in self.archival_metadata:
+                    folder_key = self.get_folder_key(file_path)
+                    if folder_key in folder_metadata:
+                        # Apply folder metadata but mark as inherited
+                        inherited_metadata = folder_metadata[folder_key].copy()
+                        inherited_metadata['Filename'] = os.path.basename(file_path)
+                        inherited_metadata['match_type'] = 'folder_inherited'
+                        self.archival_metadata[file_path] = inherited_metadata
+                        matched_count += 1
+            
+            # Generate detailed report
+            unmatched_files = []
+            exact_matches = 0
+            inherited_matches = 0
+            
+            for file_path in self.ledger.df['filepath']:
+                if file_path in self.archival_metadata:
+                    if self.archival_metadata[file_path].get('match_type') == 'folder_inherited':
+                        inherited_matches += 1
+                    else:
+                        exact_matches += 1
+                else:
+                    unmatched_files.append(file_path)
+            
+            # Show detailed results
+            result_msg = f"Imported {len(all_metadata)} metadata records\n\n"
+            result_msg += f"✅ Matched {matched_count} files:\n"
+            result_msg += f"   • {exact_matches} exact filename matches\n"
+            result_msg += f"   • {inherited_matches} folder-level inherited\n\n"
+            
+            if unmatched_files:
+                result_msg += f"❌ {len(unmatched_files)} unmatched files:\n"
+                # Show first few unmatched files as examples
+                for i, file_path in enumerate(unmatched_files[:5]):
+                    filename = os.path.basename(file_path)
+                    folder = os.path.basename(os.path.dirname(file_path))
+                    result_msg += f"   • {filename} (in {folder})\n"
+                
+                if len(unmatched_files) > 5:
+                    result_msg += f"   • ... and {len(unmatched_files) - 5} more\n"
+                
+                result_msg += f"\nCommon reasons for no match:\n"
+                result_msg += f"• Files outside Collection/Box/Folder structure\n"
+                result_msg += f"• Different collection not in metadata\n"
+                result_msg += f"• Files in root directories or temp folders"
+            
+            messagebox.showinfo("Metadata Import Results", result_msg)
+            
+            # Refresh display to show updated metadata
+            self.refresh_display()
+            
+        except Exception as e:
+            messagebox.showerror("Import Error", f"Failed to import metadata: {str(e)}")
+            import traceback
+            print(f"Metadata import error: {traceback.format_exc()}")
+    
+    def paths_match(self, actual_path, constructed_path):
+        """Check if actual file path matches constructed metadata path using relative matching"""
+        # Extract relative path components from actual file
+        actual_parts = actual_path.replace('\\', '/').split('/')
+        constructed_parts = constructed_path.replace('\\', '/').split('/')
+        
+        # Work backwards from filename to find matching pattern
+        if len(actual_parts) < len(constructed_parts):
+            return False
+            
+        # Check if the end of actual path matches constructed path
+        actual_suffix = actual_parts[-len(constructed_parts):]
+        
+        for i, (actual, expected) in enumerate(zip(actual_suffix, constructed_parts)):
+            if i == len(constructed_parts) - 1:  # Filename - exact match
+                if actual.lower() != expected.lower():
+                    return False
+            else:  # Directory - flexible matching
+                if not self.directory_match(actual.lower(), expected.lower()):
+                    return False
+        
+        return True
+    
+    def directory_match(self, actual_dir, expected_dir):
+        """Flexible directory matching"""
+        # Exact match
+        if actual_dir == expected_dir:
+            return True
+        # Box/Folder pattern matching
+        if 'box' in expected_dir and 'box' in actual_dir:
+            return True
+        if 'folder' in expected_dir and 'folder' in actual_dir:
+            return True
+        # Partial name matching
+        return expected_dir in actual_dir or actual_dir in expected_dir
+    
+    def get_folder_key(self, file_path):
+        """Extract folder key for grouping files by folder"""
+        path_parts = file_path.replace('\\', '/').split('/')
+        
+        # Work backwards to find collection/box/folder structure
+        folder_parts = []
+        for i in range(len(path_parts) - 1, 0, -1):  # Skip filename
+            part = path_parts[i]
+            folder_parts.insert(0, part)
+            
+            # Stop when we have enough context (3 levels: collection/box/folder)
+            if len(folder_parts) >= 3:
+                break
+        
+        return '/'.join(folder_parts).lower()
+    
+    def show_column_mapping_dialog(self, columns):
+        """Show dialog to map CSV columns to required fields"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Map CSV Columns")
+        dialog.geometry("500x300")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        result = {}
+        
+        ttk.Label(dialog, text="Map your CSV columns to required fields:", font=("Arial", 12, "bold")).pack(pady=10)
+        
+        # Collection mapping
+        ttk.Label(dialog, text="Collection:").pack(anchor=tk.W, padx=20)
+        collection_var = tk.StringVar()
+        collection_combo = ttk.Combobox(dialog, textvariable=collection_var, values=columns, width=40)
+        collection_combo.pack(padx=20, pady=2)
+        
+        # Box mapping
+        ttk.Label(dialog, text="Box/Container:").pack(anchor=tk.W, padx=20, pady=(10,0))
+        box_var = tk.StringVar()
+        box_combo = ttk.Combobox(dialog, textvariable=box_var, values=columns, width=40)
+        box_combo.pack(padx=20, pady=2)
+        
+        # Folder mapping
+        ttk.Label(dialog, text="Folder/Title:").pack(anchor=tk.W, padx=20, pady=(10,0))
+        folder_var = tk.StringVar()
+        folder_combo = ttk.Combobox(dialog, textvariable=folder_var, values=columns, width=40)
+        folder_combo.pack(padx=20, pady=2)
+        
+        # Filename mapping
+        ttk.Label(dialog, text="Filename/Identifier:").pack(anchor=tk.W, padx=20, pady=(10,0))
+        filename_var = tk.StringVar()
+        filename_combo = ttk.Combobox(dialog, textvariable=filename_var, values=columns, width=40)
+        filename_combo.pack(padx=20, pady=2)
+        
+        def on_ok():
+            if all([collection_var.get(), box_var.get(), folder_var.get(), filename_var.get()]):
+                result['collection'] = collection_var.get()
+                result['box'] = box_var.get()
+                result['folder'] = folder_var.get()
+                result['filename'] = filename_var.get()
+                dialog.destroy()
+            else:
+                messagebox.showwarning("Missing Selection", "Please select all four columns")
+        
+        ttk.Button(dialog, text="OK", command=on_ok).pack(pady=20)
+        
+        dialog.wait_window()
+        return result
+    
+    def match_by_resource_id(self, file_path, collection, box, resource_id):
+        """Match file using Resource Identifier as base filename"""
+        # Extract actual filename without extension
+        actual_base = os.path.splitext(os.path.basename(file_path))[0]
+        
+        # Direct match on Resource Identifier
+        if actual_base.lower() == resource_id.lower():
+            return True
+        
+        return False
+    
+    def import_csv_with_paths(self):
+        """Import CSV file with file paths and metadata"""
+        file_path = filedialog.askopenfilename(
+            title="Select CSV with File Paths",
+            filetypes=[("CSV files", "*.csv")]
+        )
+        
+        if not file_path:
+            return
+            
+        try:
+            import pandas as pd
+            
+            # Read CSV
+            df = pd.read_csv(file_path)
+            
+            # Find filepath column
+            filepath_col = self.find_filepath_column(df.columns.tolist())
+            if not filepath_col:
+                messagebox.showerror("No Filepath Column", "Could not find a column containing file paths")
+                return
+            
+            # Collect all valid file paths first
+            valid_paths = []
+            for _, row in df.iterrows():
+                filepath = str(row[filepath_col]).strip()
+                if os.path.exists(filepath):
+                    valid_paths.append(filepath)
+            
+            # Add all files at once
+            if valid_paths:
+                added_count = self.ledger.add_files(valid_paths)
+            else:
+                added_count = 0
+            
+            messagebox.showinfo("Import Complete", f"Imported {added_count} files with metadata from CSV")
+            self.refresh_display()
+            
+        except Exception as e:
+            messagebox.showerror("Import Error", f"Failed to import CSV: {str(e)}")
+    
+    def find_filepath_column(self, columns):
+        """Find column containing file paths"""
+        filepath_indicators = ['filepath', 'file_path', 'path', 'filename', 'file']
+        
+        for col in columns:
+            if any(indicator in col.lower() for indicator in filepath_indicators):
+                return col
+        return None
+    
+    def analyze_document_relationships(self):
+        """Analyze PDF-image relationships in the dataset"""
+        if not self.ground_truth_engine:
+            messagebox.showwarning("Ground Truth Required", "Please set ground truth OCR engine first")
+            return
+        
+        def analysis_worker():
+            self.start_processing()
+            self.status_var.set("Analyzing document relationships...")
+            self.log_activity("Started document relationship analysis")
+            
+            try:
+                relationships = self.detect_pdf_image_relationships()
+                
+                if not relationships:
+                    self.status_var.set("No relationships found")
+                    messagebox.showinfo("No Relationships", "No PDF-image relationships detected")
+                    return
+                
+                self.log_activity(f"Found {len(relationships)} potential relationships")
+                self.status_var.set(f"Analysis complete - {len(relationships)} relationships found")
+                
+                # Show review dialog
+                self.root.after(0, lambda: self.show_relationship_review_dialog(relationships))
+                
+            except Exception as e:
+                self.log_activity(f"Relationship analysis error: {str(e)}")
+                self.status_var.set(f"Analysis failed: {str(e)}")
+                messagebox.showerror("Analysis Error", str(e))
+            finally:
+                self.finish_processing()
+        
+        self.progress.start()
+        threading.Thread(target=analysis_worker, daemon=True).start()
+    
+    def detect_pdf_image_relationships(self):
+        """Detect relationships between PDFs and images"""
+        relationships = []
+        ocr_source = self.ground_truth_engine
+        
+        # Group files by directory
+        directories = {}
+        for _, row in self.ledger.df.iterrows():
+            dir_path = os.path.dirname(row['filepath'])
+            if dir_path not in directories:
+                directories[dir_path] = {'pdfs': [], 'images': []}
+            
+            if row['file_type'] == '.pdf':
+                directories[dir_path]['pdfs'].append(row)
+            else:
+                directories[dir_path]['images'].append(row)
+        
+        # Analyze each directory
+        for dir_path, files in directories.items():
+            if not files['pdfs'] or not files['images']:
+                continue
+            
+            # Check for subdirectories with images
+            for subdir in os.listdir(dir_path):
+                subdir_path = os.path.join(dir_path, subdir)
+                if os.path.isdir(subdir_path) and 'photo' in subdir.lower():
+                    # Found potential source photos directory
+                    subdir_images = [row for row in self.ledger.df.iterrows() 
+                                   if os.path.dirname(row[1]['filepath']) == subdir_path]
+                    
+                    if subdir_images:
+                        # Simple case: one PDF with matching image count
+                        if len(files['pdfs']) == 1:
+                            pdf_row = files['pdfs'][0]
+                            pdf_pages = self.get_pdf_page_count(pdf_row['filepath'])
+                            
+                            if pdf_pages == len(subdir_images):
+                                relationships.append({
+                                    'pdf': pdf_row,
+                                    'images': [img[1] for img in subdir_images],
+                                    'confidence': 0.95,
+                                    'method': 'page_count_match',
+                                    'notes': f'PDF has {pdf_pages} pages, found {len(subdir_images)} images'
+                                })
+                        
+                        # Complex case: multiple PDFs, use OCR similarity
+                        else:
+                            for pdf_row in files['pdfs']:
+                                matches = self.match_pdf_to_images_by_ocr(pdf_row, subdir_images, ocr_source)
+                                if matches['confidence'] > 0.7:
+                                    relationships.append(matches)
+        
+        return relationships
+    
+    def get_pdf_page_count(self, pdf_path):
+        """Get number of pages in PDF"""
+        try:
+            import fitz
+            doc = fitz.open(pdf_path)
+            page_count = len(doc)
+            doc.close()
+            return page_count
+        except:
+            return 0
+    
+    def match_pdf_to_images_by_ocr(self, pdf_row, image_rows, ocr_source):
+        """Match PDF to images using OCR text similarity"""
+        from difflib import SequenceMatcher
+        
+        pdf_text = str(pdf_row.get(f'{ocr_source}_ocr', ''))
+        if not pdf_text or pdf_text == 'nan':
+            return {'confidence': 0.0}
+        
+        # Combine all image OCR text
+        image_texts = []
+        matched_images = []
+        
+        for img_tuple in image_rows:
+            img_row = img_tuple[1]
+            img_text = str(img_row.get(f'{ocr_source}_ocr', ''))
+            if img_text and img_text != 'nan':
+                image_texts.append(img_text)
+                matched_images.append(img_row)
+        
+        if not image_texts:
+            return {'confidence': 0.0}
+        
+        combined_image_text = ' '.join(image_texts)
+        similarity = SequenceMatcher(None, pdf_text.lower(), combined_image_text.lower()).ratio()
+        
+        return {
+            'pdf': pdf_row,
+            'images': matched_images,
+            'confidence': similarity,
+            'method': 'ocr_similarity',
+            'notes': f'OCR similarity: {similarity:.2%}'
+        }
+    
+    def show_relationship_review_dialog(self, relationships):
+        """Show dialog to review and approve relationships"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Review Document Relationships")
+        dialog.geometry("1200x800")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # Header
+        header_frame = ttk.Frame(dialog)
+        header_frame.pack(fill=tk.X, padx=10, pady=10)
+        
+        ttk.Label(header_frame, text="🔗 Document Relationship Analysis", 
+                 font=("Arial", 14, "bold")).pack()
+        ttk.Label(header_frame, text=f"Found {len(relationships)} potential relationships", 
+                 font=("Arial", 10), foreground="gray").pack()
+        
+        # Main content
+        main_frame = ttk.Frame(dialog)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        
+        # Relationship list
+        list_frame = ttk.LabelFrame(main_frame, text="Detected Relationships")
+        list_frame.pack(fill=tk.BOTH, expand=True)
+        
+        columns = ['pdf', 'images', 'confidence', 'method', 'approved']
+        tree = ttk.Treeview(list_frame, columns=columns, show='headings')
+        
+        tree.heading('pdf', text='PDF Document')
+        tree.heading('images', text='Matched Images')
+        tree.heading('confidence', text='Confidence')
+        tree.heading('method', text='Method')
+        tree.heading('approved', text='Approved')
+        
+        tree.column('pdf', width=300)
+        tree.column('images', width=200)
+        tree.column('confidence', width=100)
+        tree.column('method', width=150)
+        tree.column('approved', width=80)
+        
+        # Populate tree
+        approved_vars = {}
+        for i, rel in enumerate(relationships):
+            pdf_name = os.path.basename(rel['pdf']['filename'])
+            image_count = len(rel['images'])
+            confidence = f"{rel['confidence']:.1%}"
+            method = rel['method'].replace('_', ' ').title()
+            
+            item_id = tree.insert('', 'end', values=[
+                pdf_name, f"{image_count} images", confidence, method, "✅ Yes"
+            ])
+            approved_vars[item_id] = tk.BooleanVar(value=True)
+        
+        tree.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        # Buttons
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(fill=tk.X, padx=10, pady=10)
+        
+        def apply_relationships():
+            approved_relationships = []
+            for i, (item_id, var) in enumerate(approved_vars.items()):
+                if var.get():
+                    approved_relationships.append(relationships[i])
+            
+            if approved_relationships:
+                self.store_approved_relationships(approved_relationships)
+                messagebox.showinfo("Relationships Stored", 
+                                   f"Stored {len(approved_relationships)} approved relationships")
+            dialog.destroy()
+        
+        ttk.Button(button_frame, text="✅ Apply Approved", command=apply_relationships).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="❌ Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+    
+    def store_approved_relationships(self, relationships):
+        """Store approved relationships for export"""
+        # Store in a simple format for now
+        self.document_relationships = relationships
+        self.log_activity(f"Stored {len(relationships)} document relationships")
     
     def apply_entity_merges(self, approved_groups, entity_type):
         """Apply approved entity merges to the data"""
